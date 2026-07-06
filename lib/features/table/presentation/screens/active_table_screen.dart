@@ -80,6 +80,46 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
         .updateName(member, newName);
   }
 
+  Future<void> _removeMember(MemberModel member) async {
+    final orderCount = ref
+        .read(ordersProvider(widget.tableId).notifier)
+        .getCountForMember(member.id);
+
+    if (orderCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Members with existing orders cannot be removed'),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remove member?'),
+        content: Text('${member.name} will be removed from this table.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await ref
+        .read(membersProvider(widget.tableId).notifier)
+        .removeMember(member);
+  }
+
   void _addOrder(MemberModel member) async {
     HapticFeedback.lightImpact();
     await ref
@@ -183,6 +223,10 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
         onRename: () async {
           Navigator.pop(context);
           await _renameMember(member);
+        },
+        onRemove: () async {
+          Navigator.pop(context);
+          await _removeMember(member);
         },
         onPaidToggle: () async {
           if (member.isPaid) {
@@ -558,11 +602,13 @@ class _MemberCard extends StatelessWidget {
 class _MemberOptionsSheet extends StatelessWidget {
   final MemberModel member;
   final VoidCallback onRename;
+  final VoidCallback onRemove;
   final VoidCallback onPaidToggle;
 
   const _MemberOptionsSheet({
     required this.member,
     required this.onRename,
+    required this.onRemove,
     required this.onPaidToggle,
   });
 
@@ -585,6 +631,13 @@ class _MemberOptionsSheet extends StatelessWidget {
             leading: const Icon(Icons.edit_outlined),
             title: const Text('Rename'),
             onTap: onRename,
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+            title: const Text('Remove'),
+            textColor: AppColors.danger,
+            iconColor: AppColors.danger,
+            onTap: onRemove,
           ),
           ListTile(
             leading: Icon(

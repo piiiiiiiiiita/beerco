@@ -63,4 +63,14 @@ void main() {
 
     expect(repository.getMembersForTable(table.id).single.name, 'Petr M.');
   });
+
+  test('removes a member from the table', () async {
+    final repository = TableRepository();
+    final table = await repository.createTable('Friday beers');
+    final member = await repository.addMember(table.id, 'Petr');
+
+    await repository.removeMember(member);
+
+    expect(repository.getMembersForTable(table.id), isEmpty);
+  });
 }
