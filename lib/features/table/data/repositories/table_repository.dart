@@ -1,11 +1,13 @@
 import 'package:hive_ce/hive.dart';
 import 'package:uuid/uuid.dart';
+import 'package:beerco/features/order/data/models/order_model.dart';
 import 'package:beerco/features/table/data/models/table_model.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
 
 class TableRepository {
   final Box<TableModel> _tableBox = Hive.box<TableModel>('tables');
   final Box<MemberModel> _memberBox = Hive.box<MemberModel>('members');
+  final Box<OrderModel> _orderBox = Hive.box<OrderModel>('orders');
   final _uuid = const Uuid();
 
   // Tables
@@ -38,11 +40,49 @@ class TableRepository {
     }
   }
 
+  Future<void> reactivateTable(String tableId) async {
+    final table = getTable(tableId);
+    if (table != null) {
+      table.isActive = true;
+      await table.save();
+    }
+  }
+
+  Future<void> renameTable(String tableId, String newName) async {
+    final table = getTable(tableId);
+    if (table != null && newName.trim().isNotEmpty) {
+      table.name = newName.trim();
+      await table.save();
+    }
+  }
+
+  Future<void> deleteTable(String tableId) async {
+    final table = getTable(tableId);
+    if (table == null) return;
+
+    final members = _memberBox.values
+        .where((m) => m.tableId == tableId)
+        .toList();
+    final orders = _orderBox.values.where((o) => o.tableId == tableId).toList();
+
+    for (final order in orders) {
+      await order.delete();
+    }
+    for (final member in members) {
+      await member.delete();
+    }
+    await table.delete();
+  }
+
   // Members
   List<MemberModel> getMembersForTable(String tableId) =>
       _memberBox.values.where((m) => m.tableId == tableId).toList();
 
-  Future<MemberModel> addMember(String tableId, String name, {String? emoji}) async {
+  Future<MemberModel> addMember(
+    String tableId,
+    String name, {
+    String? emoji,
+  }) async {
     final member = MemberModel(
       id: _uuid.v4(),
       tableId: tableId,

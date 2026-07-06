@@ -97,7 +97,9 @@ class _TableTile extends StatelessWidget {
           fmt.format(table.createdAt),
           style: TextStyle(color: AppColors.mutedLight, fontSize: 13),
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: isActive
+            ? const Icon(Icons.chevron_right)
+            : _ArchivedTableMenu(table: table),
         onTap: () => context.push(
           isActive ? '/table/${table.id}' : '/table/${table.id}/summary',
         ),
@@ -105,3 +107,78 @@ class _TableTile extends StatelessWidget {
     );
   }
 }
+
+class _ArchivedTableMenu extends ConsumerWidget {
+  final TableModel table;
+  const _ArchivedTableMenu({required this.table});
+
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+    await ref.read(tableRepositoryProvider).reactivateTable(table.id);
+    ref.invalidate(activeTablesProvider);
+    ref.invalidate(archivedTablesProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${table.name} restored to active tables')),
+      );
+    }
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete table?'),
+        content: Text('${table.name} and all related orders will be deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await ref.read(tableRepositoryProvider).deleteTable(table.id);
+    ref.invalidate(activeTablesProvider);
+    ref.invalidate(archivedTablesProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${table.name} deleted')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<_ArchivedTableAction>(
+      onSelected: (action) {
+        switch (action) {
+          case _ArchivedTableAction.restore:
+            _restore(context, ref);
+          case _ArchivedTableAction.delete:
+            _delete(context, ref);
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: _ArchivedTableAction.restore,
+          child: Text('Restore'),
+        ),
+        PopupMenuItem(
+          value: _ArchivedTableAction.delete,
+          child: Text('Delete'),
+        ),
+      ],
+      icon: const Icon(Icons.more_vert),
+    );
+  }
+}
+
+enum _ArchivedTableAction { restore, delete }

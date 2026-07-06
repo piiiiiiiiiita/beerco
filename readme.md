@@ -19,6 +19,7 @@ samples, guidance on mobile development, and a full API reference.
 # Jak spustit Android emulator bez chyb debuggu
 
 Nejlepší workaround je spouštět bez DDS:
+Pro Android přes Terminal:
 cd /Users/mai/Documents/App/beerco
 flutter run -d emulator-5554 --no-dds
 A když už appka běží a chceš se připojit ručně:
@@ -27,3 +28,7 @@ flutter attach -d emulator-5554 --no-dds
 Spouštět appku pro testování bez řešení CLI debug session:
 cd /Users/mai/Documents/App/beerco
 flutter install -d emulator-5554
+
+iOS simulator přes terminal:
+cd /Users/mai/Documents/App/beerco
+flutter run

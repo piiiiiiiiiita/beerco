@@ -1,16 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:beerco/features/table/presentation/providers/table_providers.dart';
 import 'package:beerco/features/order/presentation/providers/order_providers.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
+import 'package:beerco/features/table/data/models/table_model.dart';
 import 'package:beerco/features/order/data/models/order_model.dart';
 import 'package:beerco/core/theme/app_theme.dart';
 
 class SummaryScreen extends ConsumerWidget {
   final String tableId;
   const SummaryScreen({super.key, required this.tableId});
+
+  Future<void> _restoreTable(
+    BuildContext context,
+    WidgetRef ref,
+    String tableId,
+  ) async {
+    await ref.read(tableRepositoryProvider).reactivateTable(tableId);
+    ref.invalidate(activeTablesProvider);
+    ref.invalidate(archivedTablesProvider);
+    if (context.mounted) {
+      context.go('/table/$tableId');
+    }
+  }
+
+  Future<void> _deleteArchivedTable(
+    BuildContext context,
+    WidgetRef ref,
+    TableModel table,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete table?'),
+        content: Text('${table.name} and all related orders will be deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await ref.read(tableRepositoryProvider).deleteTable(table.id);
+    ref.invalidate(activeTablesProvider);
+    ref.invalidate(archivedTablesProvider);
+    if (context.mounted) {
+      context.go('/');
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,6 +102,16 @@ class SummaryScreen extends ConsumerWidget {
               );
             },
           ),
+          if (table != null && !table.isActive)
+            IconButton(
+              icon: const Icon(Icons.restore_outlined),
+              onPressed: () => _restoreTable(context, ref, tableId),
+            ),
+          if (table != null && !table.isActive)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _deleteArchivedTable(context, ref, table),
+            ),
         ],
       ),
       body: ListView(

@@ -8,7 +8,7 @@ class TableModel extends HiveObject {
   final String id;
 
   @HiveField(1)
-  final String name;
+  String name;
 
   @HiveField(2)
   final DateTime createdAt;

@@ -20,36 +20,70 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
   bool _showUndo = false;
   String? _undoMessage;
 
+  Future<String?> _showTableNameDialog(String initialValue) async {
+    var draftValue = initialValue;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rename table'),
+        content: TextFormField(
+          initialValue: initialValue,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(hintText: 'Table name'),
+          onChanged: (value) => draftValue = value,
+          onFieldSubmitted: (value) =>
+              Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, draftValue.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.trim().isEmpty) {
+      return null;
+    }
+    return result.trim();
+  }
+
   Future<String?> _showMemberNameDialog({
     required String title,
     required String actionLabel,
     String initialValue = '',
   }) async {
-    final controller = TextEditingController(text: initialValue);
+    var draftValue = initialValue;
     final result = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(title),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          initialValue: initialValue,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(hintText: 'Member name'),
-          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+          onChanged: (value) => draftValue = value,
+          onFieldSubmitted: (value) =>
+              Navigator.pop(dialogContext, value.trim()),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            onPressed: () => Navigator.pop(dialogContext, draftValue.trim()),
             child: Text(actionLabel),
           ),
         ],
       ),
     );
-    controller.dispose();
 
     if (result == null || result.trim().isEmpty) {
       return null;
@@ -274,6 +308,20 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
     }
   }
 
+  Future<void> _renameTable(String currentName) async {
+    final newName = await _showTableNameDialog(currentName);
+    if (newName == null || newName == currentName) return;
+
+    await ref
+        .read(tableRepositoryProvider)
+        .renameTable(widget.tableId, newName);
+    ref.invalidate(activeTablesProvider);
+    ref.invalidate(archivedTablesProvider);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider(widget.tableId));
@@ -294,6 +342,10 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
           IconButton(
             icon: const Icon(Icons.person_add_alt_1),
             onPressed: _addMember,
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: table == null ? null : () => _renameTable(table.name),
           ),
           IconButton(
             icon: const Icon(Icons.bar_chart_outlined),
