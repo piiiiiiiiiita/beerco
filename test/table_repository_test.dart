@@ -52,4 +52,15 @@ void main() {
     expect(repository.getActiveTables(), isEmpty);
     expect(repository.getArchivedTables().single.id, table.id);
   });
+
+  test('updates an existing member name', () async {
+    final repository = TableRepository();
+    final table = await repository.createTable('Friday beers');
+    final member = await repository.addMember(table.id, 'Petr');
+
+    member.name = 'Petr M.';
+    await repository.updateMember(member);
+
+    expect(repository.getMembersForTable(table.id).single.name, 'Petr M.');
+  });
 }

@@ -15,3 +15,15 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+# Jak spustit Android emulator bez chyb debuggu
+
+Nejlepší workaround je spouštět bez DDS:
+cd /Users/mai/Documents/App/beerco
+flutter run -d emulator-5554 --no-dds
+A když už appka běží a chceš se připojit ručně:
+flutter attach -d emulator-5554 --no-dds
+
+Spouštět appku pro testování bez řešení CLI debug session:
+cd /Users/mai/Documents/App/beerco
+flutter install -d emulator-5554

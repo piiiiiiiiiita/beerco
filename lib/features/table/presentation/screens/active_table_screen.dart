@@ -20,6 +20,66 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
   bool _showUndo = false;
   String? _undoMessage;
 
+  Future<String?> _showMemberNameDialog({
+    required String title,
+    required String actionLabel,
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(hintText: 'Member name'),
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (result == null || result.trim().isEmpty) {
+      return null;
+    }
+    return result.trim();
+  }
+
+  Future<void> _addMember() async {
+    final name = await _showMemberNameDialog(
+      title: 'Add member',
+      actionLabel: 'Add',
+    );
+    if (name == null) return;
+
+    await ref.read(membersProvider(widget.tableId).notifier).addMember(name);
+  }
+
+  Future<void> _renameMember(MemberModel member) async {
+    final newName = await _showMemberNameDialog(
+      title: 'Rename member',
+      actionLabel: 'Save',
+      initialValue: member.name,
+    );
+    if (newName == null || newName == member.name) return;
+
+    await ref
+        .read(membersProvider(widget.tableId).notifier)
+        .updateName(member, newName);
+  }
+
   void _addOrder(MemberModel member) async {
     HapticFeedback.lightImpact();
     await ref
@@ -120,7 +180,10 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
       ),
       builder: (_) => _MemberOptionsSheet(
         member: member,
-        tableId: widget.tableId,
+        onRename: () async {
+          Navigator.pop(context);
+          await _renameMember(member);
+        },
         onPaidToggle: () async {
           if (member.isPaid) {
             await ref
@@ -184,6 +247,10 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
         ),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1),
+            onPressed: _addMember,
+          ),
           IconButton(
             icon: const Icon(Icons.bar_chart_outlined),
             onPressed: () => context.push('/table/${widget.tableId}/summary'),
@@ -490,12 +557,12 @@ class _MemberCard extends StatelessWidget {
 
 class _MemberOptionsSheet extends StatelessWidget {
   final MemberModel member;
-  final String tableId;
+  final VoidCallback onRename;
   final VoidCallback onPaidToggle;
 
   const _MemberOptionsSheet({
     required this.member,
-    required this.tableId,
+    required this.onRename,
     required this.onPaidToggle,
   });
 
@@ -514,6 +581,11 @@ class _MemberOptionsSheet extends StatelessWidget {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 20),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Rename'),
+            onTap: onRename,
+          ),
           ListTile(
             leading: Icon(
               member.isPaid ? Icons.undo : Icons.check_circle_outline,
