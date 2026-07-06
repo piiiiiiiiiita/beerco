@@ -1,0 +1,76 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:beerco/features/table/data/models/table_model.dart';
+import 'package:beerco/features/table/data/models/member_model.dart';
+import 'package:beerco/features/table/data/repositories/table_repository.dart';
+
+final tableRepositoryProvider = Provider<TableRepository>(
+  (ref) => TableRepository(),
+);
+
+// All active tables for continuing an open session
+final activeTablesProvider = Provider<List<TableModel>>((ref) {
+  final repo = ref.watch(tableRepositoryProvider);
+  return repo.getActiveTables()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+});
+
+// All archived tables for history screen
+final archivedTablesProvider = Provider<List<TableModel>>((ref) {
+  final repo = ref.watch(tableRepositoryProvider);
+  return repo.getArchivedTables()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+});
+
+// Single table
+final tableProvider = Provider.family<TableModel?, String>((ref, tableId) {
+  final repo = ref.watch(tableRepositoryProvider);
+  return repo.getTable(tableId);
+});
+
+// Members for a table
+final membersProvider =
+    StateNotifierProvider.family<MembersNotifier, List<MemberModel>, String>((
+      ref,
+      tableId,
+    ) {
+      final repo = ref.watch(tableRepositoryProvider);
+      return MembersNotifier(repo, tableId);
+    });
+
+class MembersNotifier extends StateNotifier<List<MemberModel>> {
+  final TableRepository _repo;
+  final String _tableId;
+
+  MembersNotifier(this._repo, this._tableId)
+    : super(_repo.getMembersForTable(_tableId));
+
+  void refresh() {
+    state = _repo.getMembersForTable(_tableId);
+  }
+
+  Future<void> addMember(String name, {String? emoji}) async {
+    await _repo.addMember(_tableId, name, emoji: emoji);
+    refresh();
+  }
+
+  Future<void> removeMember(MemberModel member) async {
+    await _repo.removeMember(member);
+    refresh();
+  }
+
+  Future<void> markPaid(String memberId) async {
+    await _repo.markMemberPaid(memberId);
+    refresh();
+  }
+
+  Future<void> markUnpaid(String memberId) async {
+    await _repo.markMemberUnpaid(memberId);
+    refresh();
+  }
+
+  Future<void> updateName(MemberModel member, String newName) async {
+    member.name = newName;
+    await _repo.updateMember(member);
+    refresh();
+  }
+}

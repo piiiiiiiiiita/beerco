@@ -1,0 +1,81 @@
+import 'package:hive_ce/hive.dart';
+import 'package:uuid/uuid.dart';
+import 'package:beerco/features/table/data/models/table_model.dart';
+import 'package:beerco/features/table/data/models/member_model.dart';
+
+class TableRepository {
+  final Box<TableModel> _tableBox = Hive.box<TableModel>('tables');
+  final Box<MemberModel> _memberBox = Hive.box<MemberModel>('members');
+  final _uuid = const Uuid();
+
+  // Tables
+  List<TableModel> getAllTables() => _tableBox.values.toList();
+
+  List<TableModel> getActiveTables() =>
+      _tableBox.values.where((t) => t.isActive).toList();
+
+  List<TableModel> getArchivedTables() =>
+      _tableBox.values.where((t) => !t.isActive).toList();
+
+  TableModel? getTable(String id) =>
+      _tableBox.values.where((t) => t.id == id).firstOrNull;
+
+  Future<TableModel> createTable(String name) async {
+    final table = TableModel(
+      id: _uuid.v4(),
+      name: name.isEmpty ? 'Table ${_tableBox.length + 1}' : name,
+      createdAt: DateTime.now(),
+    );
+    await _tableBox.add(table);
+    return table;
+  }
+
+  Future<void> archiveTable(String tableId) async {
+    final table = getTable(tableId);
+    if (table != null) {
+      table.isActive = false;
+      await table.save();
+    }
+  }
+
+  // Members
+  List<MemberModel> getMembersForTable(String tableId) =>
+      _memberBox.values.where((m) => m.tableId == tableId).toList();
+
+  Future<MemberModel> addMember(String tableId, String name, {String? emoji}) async {
+    final member = MemberModel(
+      id: _uuid.v4(),
+      tableId: tableId,
+      name: name,
+      emoji: emoji,
+    );
+    await _memberBox.add(member);
+    return member;
+  }
+
+  Future<void> updateMember(MemberModel member) async {
+    await member.save();
+  }
+
+  Future<void> removeMember(MemberModel member) async {
+    await member.delete();
+  }
+
+  Future<void> markMemberPaid(String memberId) async {
+    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    if (member != null) {
+      member.isPaid = true;
+      member.paidAt = DateTime.now();
+      await member.save();
+    }
+  }
+
+  Future<void> markMemberUnpaid(String memberId) async {
+    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    if (member != null) {
+      member.isPaid = false;
+      member.paidAt = null;
+      await member.save();
+    }
+  }
+}
