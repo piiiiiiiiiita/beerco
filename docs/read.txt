@@ -1,0 +1,11 @@
+android:
+flutter run -d emulator-5554
+
+iOS:
+flutter run
+
+Pár tipů:
+
+Emulátor se poprvé rozjíždí ~30–60 s, buď trpělivý.
+Když už máš iOS session běžící a chceš oba naráz, můžeš spustit na všech: flutter run -d all.
+Emulátor jde příště spustit i z Android Studia (Device Manager) nebo v tvém editoru přes device picker v status baru.
