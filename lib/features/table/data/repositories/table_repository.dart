@@ -1,12 +1,16 @@
 import 'package:hive_ce/hive.dart';
 import 'package:uuid/uuid.dart';
 import 'package:beerco/features/order/data/models/order_model.dart';
+import 'package:beerco/features/table/data/models/table_event_model.dart';
 import 'package:beerco/features/table/data/models/table_model.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
 
 class TableRepository {
   final Box<TableModel> _tableBox = Hive.box<TableModel>('tables');
   final Box<MemberModel> _memberBox = Hive.box<MemberModel>('members');
+  final Box<TableEventModel> _tableEventBox = Hive.box<TableEventModel>(
+    'table_events',
+  );
   final Box<OrderModel> _orderBox = Hive.box<OrderModel>('orders');
   final _uuid = const Uuid();
 
@@ -63,15 +67,43 @@ class TableRepository {
     final members = _memberBox.values
         .where((m) => m.tableId == tableId)
         .toList();
+    final events = _tableEventBox.values
+        .where((event) => event.tableId == tableId)
+        .toList();
     final orders = _orderBox.values.where((o) => o.tableId == tableId).toList();
 
     for (final order in orders) {
       await order.delete();
     }
+    for (final event in events) {
+      await event.delete();
+    }
     for (final member in members) {
       await member.delete();
     }
     await table.delete();
+  }
+
+  List<TableEventModel> getEventsForTable(String tableId) =>
+      _tableEventBox.values.where((event) => event.tableId == tableId).toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+  Future<void> addEvent({
+    required String tableId,
+    required String memberId,
+    required String memberName,
+    required String type,
+  }) async {
+    await _tableEventBox.add(
+      TableEventModel(
+        id: _uuid.v4(),
+        tableId: tableId,
+        memberId: memberId,
+        memberName: memberName,
+        type: type,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   // Members
@@ -82,12 +114,14 @@ class TableRepository {
     String tableId,
     String name, {
     String? emoji,
+    String? avatarAsset,
   }) async {
     final member = MemberModel(
       id: _uuid.v4(),
       tableId: tableId,
       name: name,
       emoji: emoji,
+      avatarAsset: avatarAsset,
     );
     await _memberBox.add(member);
     return member;
@@ -107,6 +141,12 @@ class TableRepository {
       member.isPaid = true;
       member.paidAt = DateTime.now();
       await member.save();
+      await addEvent(
+        tableId: member.tableId,
+        memberId: member.id,
+        memberName: member.name,
+        type: 'paid',
+      );
     }
   }
 
@@ -116,6 +156,12 @@ class TableRepository {
       member.isPaid = false;
       member.paidAt = null;
       await member.save();
+      await addEvent(
+        tableId: member.tableId,
+        memberId: member.id,
+        memberName: member.name,
+        type: 'active_again',
+      );
     }
   }
 }

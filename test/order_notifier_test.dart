@@ -49,4 +49,32 @@ void main() {
     expect(notifier.state, hasLength(1));
     expect(notifier.state.single.memberName, 'Petr');
   });
+
+  test(
+    'removeLastOrderForMember removes only that member latest order',
+    () async {
+      final notifier = OrdersNotifier(OrderRepository(), 'table-1');
+
+      await notifier.addOrder('member-1', 'Petr');
+      await notifier.addOrder('member-2', 'Mai');
+      await notifier.addOrder('member-1', 'Petr');
+
+      await notifier.removeLastOrderForMember('member-1');
+
+      expect(notifier.getCountForMember('member-1'), 1);
+      expect(notifier.getCountForMember('member-2'), 1);
+    },
+  );
+
+  test('addRandomOrders allows more orders than active members', () async {
+    final notifier = OrdersNotifier(OrderRepository(), 'table-1');
+
+    await notifier.addRandomOrders(
+      ['member-1', 'member-2'],
+      ['Petr', 'Mai'],
+      5,
+    );
+
+    expect(notifier.state, hasLength(5));
+  });
 }

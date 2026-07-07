@@ -5,6 +5,7 @@ import 'package:hive_ce/hive.dart';
 
 import 'package:beerco/features/order/data/models/order_model.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
+import 'package:beerco/features/table/data/models/table_event_model.dart';
 import 'package:beerco/features/table/data/models/table_model.dart';
 import 'package:beerco/features/table/data/repositories/table_repository.dart';
 
@@ -23,8 +24,12 @@ void main() {
     if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(OrderModelAdapter());
     }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(TableEventModelAdapter());
+    }
     await Hive.openBox<TableModel>('tables');
     await Hive.openBox<MemberModel>('members');
+    await Hive.openBox<TableEventModel>('table_events');
     await Hive.openBox<OrderModel>('orders');
   });
 
@@ -102,6 +107,7 @@ void main() {
   test('deletes an archived table and related members and orders', () async {
     final repository = TableRepository();
     final ordersBox = Hive.box<OrderModel>('orders');
+    final eventsBox = Hive.box<TableEventModel>('table_events');
     final table = await repository.createTable('Friday beers');
     final member = await repository.addMember(table.id, 'Petr');
 
@@ -114,6 +120,16 @@ void main() {
         timestamp: DateTime.now(),
       ),
     );
+    await eventsBox.add(
+      TableEventModel(
+        id: 'event-1',
+        tableId: table.id,
+        memberId: member.id,
+        memberName: member.name,
+        type: 'paid',
+        timestamp: DateTime.now(),
+      ),
+    );
     await repository.archiveTable(table.id);
 
     await repository.deleteTable(table.id);
@@ -121,8 +137,24 @@ void main() {
     expect(repository.getTable(table.id), isNull);
     expect(repository.getMembersForTable(table.id), isEmpty);
     expect(
+      eventsBox.values.where((event) => event.tableId == table.id),
+      isEmpty,
+    );
+    expect(
       ordersBox.values.where((order) => order.tableId == table.id),
       isEmpty,
     );
+  });
+
+  test('member paid and active again events are logged', () async {
+    final repository = TableRepository();
+    final table = await repository.createTable('Friday beers');
+    final member = await repository.addMember(table.id, 'Petr');
+
+    await repository.markMemberPaid(member.id);
+    await repository.markMemberUnpaid(member.id);
+
+    final events = repository.getEventsForTable(table.id);
+    expect(events.map((event) => event.type), ['paid', 'active_again']);
   });
 }

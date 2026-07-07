@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:beerco/features/table/data/models/table_event_model.dart';
 import 'package:beerco/features/table/data/models/table_model.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
 import 'package:beerco/features/table/data/repositories/table_repository.dart';
@@ -27,6 +28,14 @@ final tableProvider = Provider.family<TableModel?, String>((ref, tableId) {
   return repo.getTable(tableId);
 });
 
+final tableEventsProvider = Provider.family<List<TableEventModel>, String>((
+  ref,
+  tableId,
+) {
+  final repo = ref.watch(tableRepositoryProvider);
+  return repo.getEventsForTable(tableId);
+});
+
 // Members for a table
 final membersProvider =
     StateNotifierProvider.family<MembersNotifier, List<MemberModel>, String>((
@@ -48,8 +57,8 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
     state = _repo.getMembersForTable(_tableId);
   }
 
-  Future<void> addMember(String name, {String? emoji}) async {
-    await _repo.addMember(_tableId, name, emoji: emoji);
+  Future<void> addMember(String name, {String? emoji, String? avatarAsset}) async {
+    await _repo.addMember(_tableId, name, emoji: emoji, avatarAsset: avatarAsset);
     refresh();
   }
 
@@ -70,6 +79,12 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
 
   Future<void> updateName(MemberModel member, String newName) async {
     member.name = newName;
+    await _repo.updateMember(member);
+    refresh();
+  }
+
+  Future<void> setAvatar(MemberModel member, String? avatarAsset) async {
+    member.avatarAsset = avatarAsset;
     await _repo.updateMember(member);
     refresh();
   }

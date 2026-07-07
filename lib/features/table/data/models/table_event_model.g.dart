@@ -1,50 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'member_model.dart';
+part of 'table_event_model.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class MemberModelAdapter extends TypeAdapter<MemberModel> {
+class TableEventModelAdapter extends TypeAdapter<TableEventModel> {
   @override
-  final typeId = 1;
+  final typeId = 3;
 
   @override
-  MemberModel read(BinaryReader reader) {
+  TableEventModel read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return MemberModel(
+    return TableEventModel(
       id: fields[0] as String,
       tableId: fields[1] as String,
-      name: fields[2] as String,
-      emoji: fields[3] as String?,
-      isPaid: fields[4] == null ? false : fields[4] as bool,
-      paidAt: fields[5] as DateTime?,
-      avatarAsset: fields[6] as String?,
+      memberId: fields[2] as String,
+      memberName: fields[3] as String,
+      type: fields[4] as String,
+      timestamp: fields[5] as DateTime,
     );
   }
 
   @override
-  void write(BinaryWriter writer, MemberModel obj) {
+  void write(BinaryWriter writer, TableEventModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.tableId)
       ..writeByte(2)
-      ..write(obj.name)
+      ..write(obj.memberId)
       ..writeByte(3)
-      ..write(obj.emoji)
+      ..write(obj.memberName)
       ..writeByte(4)
-      ..write(obj.isPaid)
+      ..write(obj.type)
       ..writeByte(5)
-      ..write(obj.paidAt)
-      ..writeByte(6)
-      ..write(obj.avatarAsset);
+      ..write(obj.timestamp);
   }
 
   @override
@@ -53,7 +50,7 @@ class MemberModelAdapter extends TypeAdapter<MemberModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MemberModelAdapter &&
+      other is TableEventModelAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

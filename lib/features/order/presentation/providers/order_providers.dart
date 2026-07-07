@@ -58,15 +58,24 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
     List<String> memberNames,
     int count,
   ) async {
-    final shuffled = List.generate(memberIds.length, (i) => i)..shuffle();
-    final selected = shuffled.take(count.clamp(0, memberIds.length)).toList();
     final created = <OrderModel>[];
-    for (final idx in selected) {
+    for (var i = 0; i < count; i++) {
+      final idx = (List.generate(memberIds.length, (i) => i)..shuffle()).first;
       created.add(
         await _repo.addOrder(_tableId, memberIds[idx], memberNames[idx]),
       );
     }
     _lastOrders = created;
+    refresh();
+  }
+
+  Future<void> removeLastOrderForMember(String memberId) async {
+    final memberOrders = getOrdersForMember(memberId);
+    final lastOrder = memberOrders.lastOrNull;
+    if (lastOrder == null) return;
+
+    await _repo.removeOrder(lastOrder.id);
+    _lastOrders = [];
     refresh();
   }
 

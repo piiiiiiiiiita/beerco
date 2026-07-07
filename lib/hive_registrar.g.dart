@@ -5,12 +5,14 @@
 import 'package:hive_ce/hive.dart';
 import 'package:beerco/features/order/data/models/order_model.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
+import 'package:beerco/features/table/data/models/table_event_model.dart';
 import 'package:beerco/features/table/data/models/table_model.dart';
 
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
     registerAdapter(MemberModelAdapter());
     registerAdapter(OrderModelAdapter());
+    registerAdapter(TableEventModelAdapter());
     registerAdapter(TableModelAdapter());
   }
 }
@@ -19,6 +21,7 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
     registerAdapter(MemberModelAdapter());
     registerAdapter(OrderModelAdapter());
+    registerAdapter(TableEventModelAdapter());
     registerAdapter(TableModelAdapter());
   }
 }
