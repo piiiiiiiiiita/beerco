@@ -20,61 +20,69 @@ class HomeScreen extends ConsumerWidget {
     final archived = ref.watch(archivedTablesProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            const _HomeHeader(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                children: [
-                  AppSectionHeader(
-                    title: 'Aktivní stoly',
-                    trailing: AppPill(
-                      label: '${active.length}',
-                      backgroundColor: AppColors.primarySoft,
-                      foregroundColor: const Color(0xFF92400E),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (active.isEmpty)
-                    const _EmptyStateCard(
-                      title: 'Zatím nic neběží',
-                      subtitle: 'Začněte nové sezení a přidejte první stůl.',
-                    )
-                  else
-                    ...active.map((table) => _HomeTableCard(table: table)),
-                  const SizedBox(height: 28),
-                  const AppSectionHeader(title: 'Historie'),
-                  const SizedBox(height: 14),
-                  if (archived.isEmpty)
-                    const _EmptyStateCard(
-                      title: 'Historie je prázdná',
-                      subtitle: 'Uzavřené stoly se objeví tady.',
-                    )
-                  else
-                    AppSurfaceCard(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < archived.length; i++) ...[
-                            _HistoryRow(table: archived[i]),
-                            if (i != archived.length - 1)
-                              const Divider(
-                                height: 1,
-                                indent: 12,
-                                endIndent: 12,
-                                color: AppColors.borderLight,
-                              ),
-                          ],
-                        ],
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _HomeGlowBackdrop()),
+          SafeArea(
+            child: Column(
+              children: [
+                const _HomeHeader(),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    children: [
+                      AppSectionHeader(
+                        title: 'Aktivní stoly',
+                        trailing: AppPill(
+                          label: '${active.length}',
+                          backgroundColor: AppColors.primaryTint(context),
+                          foregroundColor: AppColors.primaryTintForeground(
+                            context,
+                          ),
+                        ),
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(height: 14),
+                      if (active.isEmpty)
+                        const _EmptyStateCard(
+                          title: 'Zatím nic neběží',
+                          subtitle:
+                              'Začněte nové sezení a přidejte první stůl.',
+                        )
+                      else
+                        ...active.map((table) => _HomeTableCard(table: table)),
+                      const SizedBox(height: 28),
+                      const AppSectionHeader(title: 'Historie'),
+                      const SizedBox(height: 14),
+                      if (archived.isEmpty)
+                        const _EmptyStateCard(
+                          title: 'Historie je prázdná',
+                          subtitle: 'Uzavřené stoly se objeví tady.',
+                        )
+                      else
+                        AppSurfaceCard(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < archived.length; i++) ...[
+                                _HistoryRow(table: archived[i]),
+                                if (i != archived.length - 1)
+                                  Divider(
+                                    height: 1,
+                                    indent: 12,
+                                    endIndent: 12,
+                                    color: AppColors.border(context),
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -90,41 +98,91 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+class _HomeGlowBackdrop extends StatelessWidget {
+  const _HomeGlowBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    final opacity = AppColors.isDark(context) ? 1.0 : 0.7;
+
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: MediaQuery.of(context).padding.top + kToolbarHeight + 400,
+          child: Opacity(
+            opacity: opacity,
+            child: Stack(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.0, 0.24, 0.72, 1.0],
+                      colors: [
+                        Color(0xCCfd530c),
+                        Color(0x88fc5c0c),
+                        Color(0x18FF7A1A),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.18, -1.0),
+                      radius: 1.02,
+                      stops: const [0.0, 0.34, 0.78, 1.0],
+                      colors: [
+                        AppColors.glowYellow.withValues(alpha: 0.30),
+                        AppColors.glowOrange.withValues(alpha: 0.24),
+                        AppColors.glowOrange.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.75),
-        border: const Border(bottom: BorderSide(color: AppColors.borderLight)),
-        boxShadow: [
-          BoxShadow(color: Colors.white.withValues(alpha: 0.4), blurRadius: 20),
-        ],
-      ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🍺', style: TextStyle(fontSize: 36)),
-          SizedBox(height: 6),
           Text(
             'BeerCo',
             style: TextStyle(
               fontSize: 30,
-              fontWeight: FontWeight.w700,
-              color: AppColors.onSurfaceLight,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             'Track orders. Check the bill.',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: AppColors.mutedLight,
+              color: isDark
+                  ? AppColors.glowYellow.withValues(alpha: 0.86)
+                  : AppColors.surfaceDark,
             ),
           ),
         ],
@@ -150,6 +208,7 @@ class _HomeTableCard extends ConsumerWidget {
       0,
       (sum, order) => sum + order.quantity,
     );
+    final isDark = AppColors.isDark(context);
 
     final card = AppSurfaceCard(
       onTap: () => context.push('/table/${table.id}'),
@@ -167,10 +226,11 @@ class _HomeTableCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Flexible(
+                          // table name , název stolu
                           child: Text(
                             table.name,
                             style: const TextStyle(
-                              fontSize: 28,
+                              fontSize: 18,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
                             ),
@@ -182,16 +242,16 @@ class _HomeTableCard extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.schedule_rounded,
                           size: 15,
-                          color: AppColors.mutedLight,
+                          color: AppColors.muted(context),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           _formatRelativeTime(table.createdAt),
-                          style: const TextStyle(
-                            color: AppColors.mutedLight,
+                          style: TextStyle(
+                            color: AppColors.muted(context),
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -204,9 +264,22 @@ class _HomeTableCard extends ConsumerWidget {
               const SizedBox(width: 12),
               AppPill(
                 label: '$orderCount piv',
-                icon: Icons.inventory_2_outlined,
-                backgroundColor: AppColors.successSoft,
-                foregroundColor: AppColors.success,
+                icon: Icons.local_bar_rounded,
+                backgroundColor: AppColors.successTint(context),
+                foregroundColor: isDark
+                    ? AppColors.mutedDark
+                    : AppColors.muted(context),
+                gradient: isDark
+                    ? const RadialGradient(
+                        center: Alignment(-0.3, -0.8),
+                        radius: 4.8,
+                        colors: [Color(0x21FFFFFF), Color(0x4DF8A91F)],
+                      )
+                    : const RadialGradient(
+                        center: Alignment(-0.3, -0.8),
+                        radius: 4.8,
+                        colors: [Color(0xFFF7F7F7), Color(0xFFF7F7F7)],
+                      ),
               ),
             ],
           ),
@@ -306,13 +379,13 @@ class _HistoryRow extends ConsumerWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.chipLight,
+                color: AppColors.chip(context),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.history_rounded,
                 size: 20,
-                color: AppColors.mutedLight,
+                color: AppColors.muted(context),
               ),
             ),
             const SizedBox(width: 12),
@@ -322,19 +395,19 @@ class _HistoryRow extends ConsumerWidget {
                 children: [
                   Text(
                     table.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.onSurfaceLight,
+                      color: AppColors.onSurface(context),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     DateFormat('d. M. HH:mm').format(table.createdAt),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.mutedLight,
+                      color: AppColors.muted(context),
                     ),
                   ),
                 ],
@@ -413,17 +486,20 @@ class _MemberAvatarStrip extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppColors.chipLight,
+                color: AppColors.chip(context),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                  color: AppColors.avatarRing(context),
+                  width: 2,
+                ),
               ),
               alignment: Alignment.center,
               child: Text(
                 '+$overflow',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.mutedLight,
+                  color: AppColors.muted(context),
                 ),
               ),
             ),
@@ -447,19 +523,19 @@ class _EmptyStateCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppColors.onSurfaceLight,
+              color: AppColors.onSurface(context),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: AppColors.mutedLight,
+              color: AppColors.muted(context),
             ),
           ),
         ],
@@ -567,7 +643,7 @@ class _TableActions {
 
 String _formatRelativeTime(DateTime createdAt) {
   final difference = DateTime.now().difference(createdAt);
-  if (difference.inMinutes < 1) return 'právě teď';
+  if (difference.inMinutes < 1) return 'Just now';
   if (difference.inMinutes < 60) return 'před ${difference.inMinutes} min';
   if (difference.inHours < 24) {
     final minutes = difference.inMinutes.remainder(60);

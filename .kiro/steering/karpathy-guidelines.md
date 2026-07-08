@@ -1,3 +1,7 @@
+---
+inclusion: always
+---
+
 # Karpathy Guidelines — coding behavior
 
 > **Priorita: 1 (nejvyšší).** Při konfliktu s `ponytail.md` mají přednost tato pravidla.

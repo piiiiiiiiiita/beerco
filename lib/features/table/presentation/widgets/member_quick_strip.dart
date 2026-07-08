@@ -23,6 +23,8 @@ class MemberQuickStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppColors.muted(context);
+
     return SizedBox(
       height: _avatar + 26,
       child: ListView.separated(
@@ -37,7 +39,7 @@ class MemberQuickStrip extends StatelessWidget {
               onTap: onAdd,
               child: CustomPaint(
                 painter: _DashedCirclePainter(
-                  color: AppColors.mutedLight.withValues(alpha: 0.6),
+                  color: muted.withValues(alpha: 0.6),
                 ),
                 child: const SizedBox(
                   width: _avatar,
@@ -93,10 +95,10 @@ class _StripTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.mutedLight,
+                color: AppColors.muted(context),
               ),
             ),
           ],

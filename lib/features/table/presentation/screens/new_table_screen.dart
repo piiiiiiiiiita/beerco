@@ -34,7 +34,8 @@ class _NewTableScreenState extends ConsumerState<NewTableScreen> {
     final name = _memberController.text.trim();
     if (name.isEmpty) return;
     setState(
-      () => _members.add(_PendingMember(name: name, avatar: randomAvatarAsset())),
+      () =>
+          _members.add(_PendingMember(name: name, avatar: randomAvatarAsset())),
     );
     _memberController.clear();
     _memberFocus.requestFocus();
@@ -77,12 +78,12 @@ class _NewTableScreenState extends ConsumerState<NewTableScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
-            const Text(
+            Text(
               'Založte stůl a přidejte partu.',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
-                color: AppColors.mutedLight,
+                color: AppColors.muted(context),
               ),
             ),
             const SizedBox(height: 20),
@@ -126,7 +127,7 @@ class _NewTableScreenState extends ConsumerState<NewTableScreen> {
                       const SizedBox(width: 12),
                       AppIconCircleButton(
                         icon: Icons.add,
-                        backgroundColor: AppColors.darkButton,
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         onPressed: _addMember,
                       ),
@@ -138,20 +139,20 @@ class _NewTableScreenState extends ConsumerState<NewTableScreen> {
             const SizedBox(height: 20),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Přidaní lidé',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.onSurfaceLight,
+                      color: AppColors.onSurface(context),
                     ),
                   ),
                 ),
                 AppPill(
                   label: '${_members.length}',
-                  backgroundColor: AppColors.primarySoft,
-                  foregroundColor: const Color(0xFF92400E),
+                  backgroundColor: AppColors.primaryTint(context),
+                  foregroundColor: AppColors.primaryTintForeground(context),
                 ),
               ],
             ),
@@ -184,16 +185,16 @@ class _NewTableScreenState extends ConsumerState<NewTableScreen> {
                         Expanded(
                           child: Text(
                             _members[index].name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.onSurfaceLight,
+                              color: AppColors.onSurface(context),
                             ),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded),
-                          color: AppColors.mutedLight,
+                          color: AppColors.muted(context),
                           onPressed: () => _removeMember(index),
                         ),
                       ],
@@ -229,13 +230,13 @@ class _NewTableEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSurfaceCard(
-      color: AppColors.chipLight,
-      child: const Text(
+      color: AppColors.chip(context),
+      child: Text(
         'Add your friends to get started',
         style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w500,
-          color: AppColors.mutedLight,
+          color: AppColors.muted(context),
         ),
       ),
     );

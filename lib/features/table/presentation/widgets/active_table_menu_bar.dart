@@ -29,11 +29,15 @@ class _ActiveTableMenuBarState extends State<ActiveTableMenuBar> {
 
   @override
   Widget build(BuildContext context) {
+    final backgroundColor = AppColors.isDark(context)
+        ? AppColors.backgroundDark
+        : AppColors.darkButton;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: AppColors.darkButton,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(40),
         boxShadow: [
           BoxShadow(

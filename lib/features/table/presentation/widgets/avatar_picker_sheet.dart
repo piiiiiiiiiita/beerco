@@ -4,10 +4,7 @@ import 'package:beerco/features/table/data/member_avatars.dart';
 
 /// Bottom sheet to pick a member avatar. Returns the chosen asset path,
 /// a random one (via the Random button), or null if dismissed.
-Future<String?> showAvatarPickerSheet(
-  BuildContext context, {
-  String? current,
-}) {
+Future<String?> showAvatarPickerSheet(BuildContext context, {String? current}) {
   return showModalBottomSheet<String>(
     context: context,
     shape: const RoundedRectangleBorder(
@@ -75,16 +72,17 @@ class _AvatarOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = selected
+        ? AppColors.primary
+        : AppColors.border(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: AppColors.chipLight,
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.white,
-            width: selected ? 3 : 2,
-          ),
+          color: AppColors.chip(context),
+          border: Border.all(color: borderColor, width: selected ? 3 : 2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),

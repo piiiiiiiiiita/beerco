@@ -9,3 +9,71 @@ Pár tipů:
 Emulátor se poprvé rozjíždí ~30–60 s, buď trpělivý.
 Když už máš iOS session běžící a chceš oba naráz, můžeš spustit na všech: flutter run -d all.
 Emulátor jde příště spustit i z Android Studia (Device Manager) nebo v tvém editoru přes device picker v status baru.
+
+# Jak spustit Android emulator bez chyb debuggu
+
+Nejlepší workaround je spouštět bez DDS:
+Pro Android přes Terminal:
+cd /Users/mai/Documents/App/beerco
+flutter run -d emulator-5554 --no-dds
+A když už appka běží a chceš se připojit ručně:
+flutter attach -d emulator-5554 --no-dds
+
+Spouštět appku pro testování bez řešení CLI debug session:
+cd /Users/mai/Documents/App/beerco
+flutter install -d emulator-5554
+
+iOS simulator přes terminal:
+cd /Users/mai/Documents/App/beerco
+flutter run
+
+
+Odinstalace a znovu instalace:
+V tomhle projektu jsou identifikátory aplikace:
+iOS bundle id: com.mai.beerco v [project.pbxproj (line 390)](/Users/mai/Documents/App/beerco/ios/Runner.xcodeproj/project.pbxproj:390)
+Android application id: com.beerco.beerco v [build.gradle.kts (line 19)](/Users/mai/Documents/App/beerco/android/app/build.gradle.kts:19)
+iOS
+Na Simulatoru:
+Spusť iOS Simulator.
+Z rootu projektu odinstaluj app:
+xcrun simctl uninstall booted com.mai.beerco
+Ověř si dostupná zařízení:
+flutter devices
+Znovu app nainstaluj:
+flutter run -d <ios-device-id>
+Příklad:
+flutter run -d "iPhone 16 Pro"
+Found 1 wirelessly connected device:
+  Mai iphone (wireless) (mobile) • 00008150-000428EC36FB801C • ios • iOS 26.5.1
+  23F81
+  
+ID JE:
+flutter run -d 00008150-000428EC36FB801C
+
+
+Na fyzickém iPhonu:
+Na telefonu podrž ikonu aplikace.
+Zvol Remove App -> Delete App.
+V terminálu zjisti device id:
+flutter devices
+Znovu nainstaluj:
+flutter run -d <iphone-device-id>
+Android
+Na emulatoru nebo telefonu:
+Z rootu projektu odinstaluj app:
+adb uninstall com.beerco.beerco
+Ověř připojené zařízení:
+flutter devices
+nebo
+adb devices
+Znovu app nainstaluj:
+flutter run -d <android-device-id>
+Příklad:
+flutter run -d emulator-5554
+Když se nová ikona pořád neukáže
+Zavři app úplně.
+Odinstaluj ji podle kroků výš.
+Spusť:
+flutter clean
+Pak znovu:
+flutter run -d <device-id>

@@ -44,21 +44,20 @@ class TableHeroCard extends StatelessWidget {
           bottomLeft: Radius.circular(44),
           bottomRight: Radius.circular(44),
         ),
-        // Single top-left white light over a solid grey base (opaque end
-        // colour, so far corners stay grey instead of showing a second light).
-        gradient: const RadialGradient(
-          center: Alignment(-0.4, -0.8),
-          radius: 1.3,
-          colors: [Color(0xFFFDFDFF), Color(0xFFF8A91F)],
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: [0.0, 0.58, 1.0],
+          colors: [Color(0xFFFFD373), Color(0xFFFF7A1A), Color(0xFFFF7A1A)],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: 0.18),
             blurRadius: 28,
             offset: const Offset(0, 16),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -77,29 +76,31 @@ class TableHeroCard extends StatelessWidget {
               AppIconCircleButton(
                 icon: Icons.edit_outlined,
                 onPressed: onEditName,
-                backgroundColor: Colors.white.withValues(alpha: 0.5),
-                borderColor: AppColors.borderLight.withValues(alpha: 0.5),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.24),
+                borderColor: Colors.white.withValues(alpha: 0.12),
+                foregroundColor: AppColors.backgroundLight,
               ),
             ],
           ),
           const SizedBox(height: 6),
+          // pill název stolu
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               // White light fading into amber at 0.7 opacity (alpha 0xB3).
               gradient: const RadialGradient(
                 center: Alignment(-0.3, -0.8),
                 radius: 4.8,
-                colors: [Color(0xFFFFFFFF), Color(0xB3F8A91F)],
+                colors: [Color(0x4DFFFFFF), Color(0x4DF8A91F)],
               ),
             ),
             child: Text(
-              tableName.isEmpty ? 'Stůl' : tableName,
+              tableName.isEmpty ? 'Your table' : tableName,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.mutedLight,
+                color: Color(0x85171717),
               ),
             ),
           ),
@@ -119,7 +120,7 @@ class TableHeroCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.mutedLight,
+              color: Color(0x85171717),
             ),
           ),
           if (members.isNotEmpty) ...[
@@ -225,15 +226,18 @@ class _MemberAvatarRow extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.chipLight,
+                color: AppColors.chip(context),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
+                border: Border.all(
+                  color: AppColors.avatarRing(context),
+                  width: 3,
+                ),
               ),
               alignment: Alignment.center,
-              child: const Icon(
+              child: Icon(
                 Icons.more_horiz,
                 size: 22,
-                color: AppColors.mutedLight,
+                color: AppColors.muted(context),
               ),
             ),
           ),
@@ -241,4 +245,3 @@ class _MemberAvatarRow extends StatelessWidget {
     );
   }
 }
-

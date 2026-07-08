@@ -21,9 +21,22 @@ class _TimelineEntry {
   _TimelineEntry({required this.timestamp, this.order, this.paidEvent});
 }
 
-class SummaryScreen extends ConsumerWidget {
+class SummaryScreen extends ConsumerStatefulWidget {
   final String tableId;
   const SummaryScreen({super.key, required this.tableId});
+
+  @override
+  ConsumerState<SummaryScreen> createState() => _SummaryScreenState();
+}
+
+class _SummaryScreenState extends ConsumerState<SummaryScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _restoreTable(
     BuildContext context,
@@ -82,15 +95,15 @@ class SummaryScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final members = ref.watch(membersProvider(tableId));
-    final orders = ref.watch(ordersProvider(tableId));
-    final table = ref.watch(tableProvider(tableId));
-    final ordersNotifier = ref.read(ordersProvider(tableId).notifier);
+  Widget build(BuildContext context) {
+    final members = ref.watch(membersProvider(widget.tableId));
+    final orders = ref.watch(ordersProvider(widget.tableId));
+    final table = ref.watch(tableProvider(widget.tableId));
+    final ordersNotifier = ref.read(ordersProvider(widget.tableId).notifier);
     final dateFmt = DateFormat('d MMM yyyy, HH:mm');
 
     final paidEvents = ref
-        .watch(tableEventsProvider(tableId))
+        .watch(tableEventsProvider(widget.tableId))
         .where((e) => e.type == 'paid');
     final timelineEntries = <_TimelineEntry>[
       ...orders.map((o) => _TimelineEntry(timestamp: o.timestamp, order: o)),
@@ -118,6 +131,8 @@ class SummaryScreen extends ConsumerWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: glassAppBar(
+        context: context,
+        scrollController: _scrollController,
         title: Text(table?.name ?? 'Summary'),
         actions: [
           IconButton(
@@ -132,27 +147,28 @@ class SummaryScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
+        controller: _scrollController,
         padding: EdgeInsets.fromLTRB(20, topPad, 20, 24),
         children: [
           AppSurfaceCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Session overview',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.onSurfaceLight,
+                    color: AppColors.onSurface(context),
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Started ${dateFmt.format(table?.createdAt ?? DateTime.now())}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.mutedLight,
+                    color: AppColors.muted(context),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -163,21 +179,21 @@ class SummaryScreen extends ConsumerWidget {
                     AppPill(
                       label: '${orders.length} orders',
                       icon: Icons.local_bar_outlined,
-                      backgroundColor: AppColors.primarySoft,
-                      foregroundColor: const Color(0xFF92400E),
+                      backgroundColor: AppColors.primaryTint(context),
+                      foregroundColor: AppColors.primaryTintForeground(context),
                     ),
                     AppPill(
                       label: '${members.length} members',
                       icon: Icons.group_outlined,
-                      backgroundColor: AppColors.chipLight,
-                      foregroundColor: AppColors.onSurfaceLight,
+                      backgroundColor: AppColors.chip(context),
+                      foregroundColor: AppColors.onSurface(context),
                     ),
                     if (table != null && !table.isActive)
                       AppPill(
                         label: 'Archived',
                         icon: Icons.history_rounded,
-                        backgroundColor: AppColors.chipLight,
-                        foregroundColor: AppColors.mutedLight,
+                        backgroundColor: AppColors.chip(context),
+                        foregroundColor: AppColors.muted(context),
                       ),
                   ],
                 ),
@@ -187,7 +203,8 @@ class SummaryScreen extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => _restoreTable(context, ref, tableId),
+                          onPressed: () =>
+                              _restoreTable(context, ref, widget.tableId),
                           icon: const Icon(Icons.restore_outlined),
                           label: const Text('Restore'),
                         ),
@@ -231,11 +248,11 @@ class SummaryScreen extends ConsumerWidget {
           AppSurfaceCard(
             padding: EdgeInsets.zero,
             child: timelineEntries.isEmpty
-                ? const Padding(
+                ? Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
                       'No orders yet',
-                      style: TextStyle(color: AppColors.mutedLight),
+                      style: TextStyle(color: AppColors.muted(context)),
                     ),
                   )
                 : ListView.separated(
@@ -243,7 +260,7 @@ class SummaryScreen extends ConsumerWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: timelineEntries.length,
                     separatorBuilder: (_, _) =>
-                        const Divider(height: 1, color: AppColors.borderLight),
+                        Divider(height: 1, color: AppColors.border(context)),
                     itemBuilder: (_, index) {
                       final entry = timelineEntries[index];
                       final timeFmt = DateFormat('HH:mm:ss');
@@ -256,8 +273,8 @@ class SummaryScreen extends ConsumerWidget {
                         ),
                         leading: Text(
                           timeFmt.format(entry.timestamp),
-                          style: const TextStyle(
-                            color: AppColors.mutedLight,
+                          style: TextStyle(
+                            color: AppColors.muted(context),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -291,7 +308,7 @@ class SummaryScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           const AppSectionHeader(title: 'Member log'),
           const SizedBox(height: 12),
-          _MemberEventTimeline(tableId: tableId),
+          _MemberEventTimeline(tableId: widget.tableId),
         ],
       ),
     );
@@ -312,11 +329,11 @@ class _MemberEventTimeline extends ConsumerWidget {
     return AppSurfaceCard(
       padding: EdgeInsets.zero,
       child: events.isEmpty
-          ? const Padding(
+          ? Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'No member status changes yet',
-                style: TextStyle(color: AppColors.mutedLight),
+                style: TextStyle(color: AppColors.muted(context)),
               ),
             )
           : ListView.separated(
@@ -324,7 +341,7 @@ class _MemberEventTimeline extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: events.length,
               separatorBuilder: (_, _) =>
-                  const Divider(height: 1, color: AppColors.borderLight),
+                  Divider(height: 1, color: AppColors.border(context)),
               itemBuilder: (_, index) {
                 final event = events[index];
                 final isPaid = event.type == 'paid';
@@ -349,8 +366,8 @@ class _MemberEventTimeline extends ConsumerWidget {
                   ),
                   trailing: Text(
                     timeFmt.format(event.timestamp),
-                    style: const TextStyle(
-                      color: AppColors.mutedLight,
+                    style: TextStyle(
+                      color: AppColors.muted(context),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -426,7 +443,7 @@ class _MemberSummaryTileState extends State<_MemberSummaryTile> {
                 const SizedBox(width: 6),
                 Icon(
                   _expanded ? Icons.expand_less : Icons.expand_more,
-                  color: AppColors.mutedLight,
+                  color: AppColors.muted(context),
                 ),
               ],
             ),
@@ -450,9 +467,9 @@ class _MemberSummaryTileState extends State<_MemberSummaryTile> {
                             const SizedBox(width: 8),
                             Text(
                               timeFmt.format(order.timestamp),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.mutedLight,
+                                color: AppColors.muted(context),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),

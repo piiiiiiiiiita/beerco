@@ -10,7 +10,7 @@ class MemberAvatar extends StatelessWidget {
   final String name;
   final double diameter;
   final double ringWidth;
-  final Color ringColor;
+  final Color? ringColor;
   final bool shadow;
 
   const MemberAvatar({
@@ -20,21 +20,22 @@ class MemberAvatar extends StatelessWidget {
     required this.name,
     required this.diameter,
     this.ringWidth = 2,
-    this.ringColor = Colors.white,
+    this.ringColor,
     this.shadow = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    final effectiveRingColor = ringColor ?? AppColors.avatarRing(context);
 
     return Container(
       width: diameter,
       height: diameter,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.primarySoft,
-        border: Border.all(color: ringColor, width: ringWidth),
+        color: AppColors.primaryTint(context),
+        border: Border.all(color: effectiveRingColor, width: ringWidth),
         boxShadow: shadow
             ? [
                 BoxShadow(

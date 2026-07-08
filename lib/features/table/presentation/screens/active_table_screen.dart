@@ -25,8 +25,15 @@ class ActiveTableScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
+  final _scrollController = ScrollController();
   bool _showUndo = false;
   String? _undoMessage;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<String?> _showTableNameDialog(String initialValue) async {
     var draftValue = initialValue;
@@ -485,6 +492,8 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: glassAppBar(
+        context: context,
+        scrollController: _scrollController,
         title: Text(table?.name ?? 'Table'),
         actions: [
           IconButton(
@@ -500,7 +509,9 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
       ),
       body: Stack(
         children: [
+          const Positioned.fill(child: _ActiveTableGlowBackdrop()),
           ListView(
+            controller: _scrollController,
             padding: EdgeInsets.fromLTRB(20, topPad, 20, 110),
             children: [
               TableHeroCard(
@@ -579,7 +590,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
               right: 16,
               child: Material(
                 borderRadius: BorderRadius.circular(20),
-                color: AppColors.darkButton,
+                color: AppColors.menuSurface(context),
                 elevation: 8,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -590,8 +601,8 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
                     children: [
                       Text(
                         _undoMessage ?? '',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: AppColors.onSurface(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -637,6 +648,61 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
               onTap: () => context.push('/table/${widget.tableId}/summary'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTableGlowBackdrop extends StatelessWidget {
+  const _ActiveTableGlowBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    final opacity = AppColors.isDark(context) ? 1.0 : 0.7;
+
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: MediaQuery.of(context).padding.top + kToolbarHeight + 400,
+          child: Opacity(
+            opacity: opacity,
+            child: Stack(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.0, 0.24, 0.72, 1.0],
+                      colors: [
+                        Color(0xFFfd530c),
+                        Color(0xFFfc5c0c),
+                        Color(0x18FF7A1A),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.18, -1.0),
+                      radius: 1.02,
+                      stops: const [0.0, 0.34, 0.78, 1.0],
+                      colors: [
+                        AppColors.glowYellow.withValues(alpha: 0.30),
+                        AppColors.glowOrange.withValues(alpha: 0.24),
+                        AppColors.glowOrange.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -773,18 +839,18 @@ class _MemberCard extends StatelessWidget {
                       else if (lastOrderTime != null)
                         Text(
                           'Last: ${timeFmt.format(lastOrderTime!)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.mutedLight,
+                            color: AppColors.muted(context),
                             fontWeight: FontWeight.w500,
                           ),
                         )
                       else
-                        const Text(
+                        Text(
                           'No orders yet',
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.mutedLight,
+                            color: AppColors.muted(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -795,8 +861,8 @@ class _MemberCard extends StatelessWidget {
                   AppIconCircleButton(
                     icon: Icons.remove_rounded,
                     onPressed: orderCount > 0 ? onDecrement : null,
-                    foregroundColor: AppColors.mutedLight,
-                    backgroundColor: AppColors.chipLight,
+                    foregroundColor: AppColors.muted(context),
+                    backgroundColor: AppColors.chip(context),
                   ),
                 const SizedBox(width: 8),
                 Text(
@@ -813,7 +879,7 @@ class _MemberCard extends StatelessWidget {
                     icon: Icons.add_rounded,
                     onPressed: onTap,
                     foregroundColor: Colors.white,
-                    backgroundColor: AppColors.darkButton,
+                    backgroundColor: AppColors.primary,
                   ),
                 ],
               ],
@@ -875,7 +941,9 @@ class _MemberOptionsSheet extends StatelessWidget {
           ListTile(
             leading: Icon(
               member.isPaid ? Icons.undo : Icons.check_circle_outline,
-              color: member.isPaid ? AppColors.mutedLight : AppColors.success,
+              color: member.isPaid
+                  ? AppColors.muted(context)
+                  : AppColors.success,
             ),
             title: Text(
               member.isPaid ? 'Mark as active' : 'Mark as paid & gone',
@@ -998,7 +1066,7 @@ class _RandomOrderDialogState extends State<_RandomOrderDialog> {
         children: [
           Text(
             'How many beers were ordered?',
-            style: TextStyle(color: AppColors.mutedLight),
+            style: TextStyle(color: AppColors.muted(context)),
           ),
           const SizedBox(height: 20),
           Row(
@@ -1025,7 +1093,7 @@ class _RandomOrderDialogState extends State<_RandomOrderDialog> {
           ),
           Text(
             '${widget.activeMemberCount} active members in the draw',
-            style: TextStyle(color: AppColors.mutedLight, fontSize: 13),
+            style: TextStyle(color: AppColors.muted(context), fontSize: 13),
           ),
           const SizedBox(height: 20),
           SizedBox(
