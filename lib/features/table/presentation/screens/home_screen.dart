@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -18,85 +20,273 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final active = ref.watch(activeTablesProvider);
     final archived = ref.watch(archivedTablesProvider);
+    final showOnboarding = active.isEmpty && archived.isEmpty;
 
     return Scaffold(
       body: Stack(
         children: [
           const Positioned.fill(child: _HomeGlowBackdrop()),
           SafeArea(
-            child: Column(
-              children: [
-                const _HomeHeader(),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: showOnboarding
+                ? _HomeOnboarding(onStart: () => context.push('/new-table'))
+                : Column(
                     children: [
-                      AppSectionHeader(
-                        title: 'Aktivní stoly',
-                        trailing: AppPill(
-                          label: '${active.length}',
-                          backgroundColor: AppColors.primaryTint(context),
-                          foregroundColor: AppColors.primaryTintForeground(
-                            context,
-                          ),
+                      const _HomeHeader(),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                          children: [
+                            AppSectionHeader(
+                              title: 'Aktivní stoly',
+                              trailing: AppPill(
+                                label: '${active.length}',
+                                backgroundColor: AppColors.primaryTint(context),
+                                foregroundColor:
+                                    AppColors.primaryTintForeground(context),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            if (active.isEmpty)
+                              const _EmptyStateCard(
+                                title: 'Zatím nic neběží',
+                                subtitle:
+                                    'Začněte nové sezení a přidejte první stůl.',
+                              )
+                            else
+                              ...active.map(
+                                (table) => _HomeTableCard(table: table),
+                              ),
+                            const SizedBox(height: 28),
+                            const AppSectionHeader(title: 'Historie'),
+                            const SizedBox(height: 14),
+                            if (archived.isEmpty)
+                              const _EmptyStateCard(
+                                title: 'Historie je prázdná',
+                                subtitle: 'Uzavřené stoly se objeví tady.',
+                              )
+                            else
+                              AppSurfaceCard(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i < archived.length;
+                                      i++
+                                    ) ...[
+                                      _HistoryRow(table: archived[i]),
+                                      if (i != archived.length - 1)
+                                        Divider(
+                                          height: 1,
+                                          indent: 12,
+                                          endIndent: 12,
+                                          color: AppColors.border(context),
+                                        ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      if (active.isEmpty)
-                        const _EmptyStateCard(
-                          title: 'Zatím nic neběží',
-                          subtitle:
-                              'Začněte nové sezení a přidejte první stůl.',
-                        )
-                      else
-                        ...active.map((table) => _HomeTableCard(table: table)),
-                      const SizedBox(height: 28),
-                      const AppSectionHeader(title: 'Historie'),
-                      const SizedBox(height: 14),
-                      if (archived.isEmpty)
-                        const _EmptyStateCard(
-                          title: 'Historie je prázdná',
-                          subtitle: 'Uzavřené stoly se objeví tady.',
-                        )
-                      else
-                        AppSurfaceCard(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < archived.length; i++) ...[
-                                _HistoryRow(table: archived[i]),
-                                if (i != archived.length - 1)
-                                  Divider(
-                                    height: 1,
-                                    indent: 12,
-                                    endIndent: 12,
-                                    color: AppColors.border(context),
-                                  ),
-                              ],
-                            ],
-                          ),
-                        ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-          child: AppPrimaryButton(
+      bottomNavigationBar: showOnboarding
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: AppPrimaryButton(
+                  label: 'Nové sezení',
+                  icon: Icons.add,
+                  onPressed: () => context.push('/new-table'),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _HomeOnboarding extends StatelessWidget {
+  final VoidCallback onStart;
+
+  const _HomeOnboarding({required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        children: [
+          const Spacer(),
+          _OnboardingAvatarOrbit(isDark: isDark),
+          const SizedBox(height: 36),
+          Text(
+            'První sezení',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: AppColors.onSurface(context),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Založte stůl, přidejte partu a začněte počítat objednávky.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              height: 1.35,
+              color: AppColors.muted(context),
+            ),
+          ),
+          const SizedBox(height: 32),
+          AppPrimaryButton(
             label: 'Nové sezení',
             icon: Icons.add,
-            onPressed: () => context.push('/new-table'),
+            onPressed: onStart,
           ),
+          const Spacer(),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingAvatarOrbit extends StatelessWidget {
+  final bool isDark;
+
+  const _OnboardingAvatarOrbit({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    const orbitAssets = [
+      'assets/images/avatars/Avatar=1.png',
+      'assets/images/avatars/Avatar=7.png',
+      'assets/images/avatars/Avatar=12.png',
+      'assets/images/avatars/Avatar=23.png',
+      'assets/images/avatars/Avatar=26.png',
+      'assets/images/avatars/Avatar=32.png',
+      'assets/images/avatars/Avatar=36.png',
+      'assets/images/avatars/Avatar=37.png',
+    ];
+
+    return SizedBox(
+      width: 320,
+      height: 320,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Align(
+            alignment: Alignment.center,
+            child: Container(
+              width: 184,
+              height: 184,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.white.withValues(alpha: 0.6),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? AppColors.glowOrange.withValues(alpha: 0.10)
+                        : Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 40,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const _OrbitAvatar(
+            asset: 'assets/images/avatars/Avatar=11.png',
+            size: 104,
+            top: 108,
+            left: 108,
+            hero: true,
+          ),
+          for (var i = 0; i < orbitAssets.length; i++)
+            _OrbitAvatar(
+              asset: orbitAssets[i],
+              size: _orbitSpecs[i].size,
+              top: _orbitSpecs[i].top,
+              left: _orbitSpecs[i].left,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrbitAvatar extends StatelessWidget {
+  final String asset;
+  final double size;
+  final double top;
+  final double left;
+  final bool hero;
+
+  const _OrbitAvatar({
+    required this.asset,
+    required this.size,
+    required this.top,
+    required this.left,
+    this.hero = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+
+    return Positioned(
+      top: top,
+      left: left,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(hero ? 30 : 22),
+          image: DecorationImage(image: AssetImage(asset), fit: BoxFit.cover),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.10)
+                : Colors.white.withValues(alpha: 0.75),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.10),
+              blurRadius: hero ? 34 : 22,
+              offset: const Offset(0, 12),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+class _OrbitSpec {
+  final double size;
+  final double top;
+  final double left;
+
+  const _OrbitSpec({required this.size, required this.top, required this.left});
+}
+
+const _orbitSpecs = [
+  _OrbitSpec(size: 54, top: 18, left: 132),
+  _OrbitSpec(size: 42, top: 40, left: 42),
+  _OrbitSpec(size: 58, top: 48, left: 222),
+  _OrbitSpec(size: 42, top: 102, left: 8),
+  _OrbitSpec(size: 46, top: 110, left: 272),
+  _OrbitSpec(size: 54, top: 210, left: 32),
+  _OrbitSpec(size: 60, top: 222, left: 216),
+  _OrbitSpec(size: 42, top: 246, left: 134),
+];
 
 class _HomeGlowBackdrop extends StatelessWidget {
   const _HomeGlowBackdrop();
@@ -166,14 +356,7 @@ class _HomeHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'BeerCo',
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primary,
-            ),
-          ),
+          const _AnimatedHomeBrand(),
           const SizedBox(height: 4),
           Text(
             'Track orders. Check the bill.',
@@ -188,6 +371,105 @@ class _HomeHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _AnimatedHomeBrand extends StatefulWidget {
+  const _AnimatedHomeBrand();
+
+  @override
+  State<_AnimatedHomeBrand> createState() => _AnimatedHomeBrandState();
+}
+
+class _AnimatedHomeBrandState extends State<_AnimatedHomeBrand>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const text = Text(
+      'BeerCo',
+      style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+    );
+
+    return AnimatedBuilder(
+      animation: _controller,
+      child: text,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) {
+            final shaderRect = Rect.fromLTWH(
+              bounds.left - bounds.width * 3.5,
+              bounds.top,
+              bounds.width * 8,
+              bounds.height,
+            );
+
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              tileMode: TileMode.repeated,
+              transform: _SlidingGradientTransform(_controller.value),
+              colors: const [
+                AppColors.backgroundDark,
+                Color(0xFF2B0B02),
+                Color(0xFF120503),
+                Color(0xFF2B0C02),
+                Color(0xFF451203),
+                Color(0xFF5C1805),
+                Color(0xFF7B2006),
+                Color(0xFFA73A11),
+                Color(0xFFC95C23),
+                Color(0xFFDC7332),
+                Color(0xFFE5823B),
+                Color(0xFFF19B4F),
+                Color(0xFF631A04),
+                Color(0xFFF19B4F),
+                Color(0xFFE5823B),
+                Color(0xFFDC7332),
+                Color(0xFFC95C23),
+                Color(0xFFA73A11),
+                Color(0xFF7B2006),
+                Color(0xFF5C1805),
+                Color(0xFF451203),
+                Color(0xFF2B0C02),
+                Color(0xFF120503),
+                Color(0xFF2B0B02),
+                AppColors.backgroundDark,
+              ],
+            ).createShader(shaderRect);
+          },
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+class _SlidingGradientTransform extends GradientTransform {
+  final double slidePercent;
+
+  const _SlidingGradientTransform(this.slidePercent);
+
+  @override
+  Matrix4? transform(Rect bounds, {ui.TextDirection? textDirection}) {
+    return Matrix4.translationValues(bounds.width * slidePercent, 0, 0);
   }
 }
 

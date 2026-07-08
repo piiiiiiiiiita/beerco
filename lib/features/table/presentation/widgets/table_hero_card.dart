@@ -204,6 +204,9 @@ class _MemberAvatarRow extends StatelessWidget {
     const maxVisible = 4;
     final visible = members.take(maxVisible).toList();
     final hasMore = members.length > maxVisible;
+    final ringColor = AppColors.isDark(context)
+        ? Colors.transparent
+        : AppColors.avatarRing(context);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -217,6 +220,7 @@ class _MemberAvatarRow extends StatelessWidget {
               name: member.name,
               diameter: 52,
               ringWidth: 3,
+              ringColor: ringColor,
             ),
           ),
         if (hasMore)
