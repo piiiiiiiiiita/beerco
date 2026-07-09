@@ -403,7 +403,7 @@ class _AnimatedHomeBrandState extends State<_AnimatedHomeBrand>
   @override
   Widget build(BuildContext context) {
     const text = Text(
-      'BeerCo',
+      'BEERCO',
       style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
     );
 
@@ -480,12 +480,8 @@ class _HomeTableCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final members = ref
-        .read(tableRepositoryProvider)
-        .getMembersForTable(table.id);
-    final orders = ref
-        .read(orderRepositoryProvider)
-        .getOrdersForTable(table.id);
+    final members = ref.watch(membersProvider(table.id));
+    final orders = ref.watch(ordersProvider(table.id));
     final orderCount = orders.fold<int>(
       0,
       (sum, order) => sum + order.quantity,
@@ -642,9 +638,7 @@ class _HistoryRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref
-        .read(orderRepositoryProvider)
-        .getOrdersForTable(table.id);
+    final orders = ref.watch(ordersProvider(table.id));
     final orderCount = orders.fold<int>(
       0,
       (sum, order) => sum + order.quantity,
@@ -862,9 +856,7 @@ class _TableActions {
     container.invalidate(activeTablesProvider);
     container.invalidate(archivedTablesProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${table.name} moved to history')));
+      showAppToast(context, '${table.name} moved to history');
     }
   }
 
@@ -874,9 +866,7 @@ class _TableActions {
     container.invalidate(activeTablesProvider);
     container.invalidate(archivedTablesProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${table.name} restored to active tables')),
-      );
+      showAppToast(context, '${table.name} restored to active tables');
     }
   }
 
@@ -916,9 +906,7 @@ class _TableActions {
     container.invalidate(activeTablesProvider);
     container.invalidate(archivedTablesProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${table.name} deleted')));
+      showAppToast(context, '${table.name} deleted');
     }
   }
 }

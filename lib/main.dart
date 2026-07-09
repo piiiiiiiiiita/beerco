@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beerco/core/theme/app_theme.dart';
 import 'package:beerco/core/router/app_router.dart';
 import 'package:beerco/core/utils/hive_init.dart';
+import 'package:beerco/core/utils/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHive();
+  await NotificationService.instance.initialize();
   runApp(const ProviderScope(child: BeerCoApp()));
 }
 

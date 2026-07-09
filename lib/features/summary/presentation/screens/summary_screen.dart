@@ -21,6 +21,14 @@ class _TimelineEntry {
   _TimelineEntry({required this.timestamp, this.order, this.paidEvent});
 }
 
+class _MemberActivityEntry {
+  final DateTime timestamp;
+  final OrderModel? order;
+  final TableEventModel? paidEvent;
+
+  _MemberActivityEntry({required this.timestamp, this.order, this.paidEvent});
+}
+
 class SummaryScreen extends ConsumerStatefulWidget {
   final String tableId;
   const SummaryScreen({super.key, required this.tableId});
@@ -139,9 +147,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
             icon: const Icon(Icons.share_outlined),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: buildShareText()));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Summary copied to clipboard')),
-              );
+              showAppToast(context, 'Summary copied to clipboard');
             },
           ),
         ],
@@ -231,14 +237,34 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
           const AppSectionHeader(title: 'Per member'),
           const SizedBox(height: 12),
           ...members.map((member) {
-            final count = ordersNotifier.getCountForMember(member.id);
+            final totalCount = ordersNotifier.getTotalCountForMember(member.id);
             final memberOrders = ordersNotifier.getOrdersForMember(member.id);
+            final allMemberPaidEvents = paidEvents
+                .where((event) => event.memberId == member.id)
+                .toList();
+            final memberPaidEventCounts = {
+              for (final event in allMemberPaidEvents)
+                event.id: ordersNotifier.getCountForPaidEvent(
+                  member.id,
+                  event.timestamp,
+                ),
+            };
+            final memberPaidEvents = allMemberPaidEvents
+                .where((event) => (memberPaidEventCounts[event.id] ?? 0) > 0)
+                .toList();
+            final lastPaidEvent = memberPaidEvents.lastOrNull;
+            final lastPaidCount = lastPaidEvent == null
+                ? null
+                : memberPaidEventCounts[lastPaidEvent.id];
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _MemberSummaryTile(
                 member: member,
-                count: count,
+                count: totalCount,
                 orders: memberOrders,
+                paidEvents: memberPaidEvents,
+                paidEventCounts: memberPaidEventCounts,
+                lastPaidCount: lastPaidCount,
               ),
             );
           }),
@@ -258,49 +284,58 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
                 : ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 8),
                     itemCount: timelineEntries.length,
                     separatorBuilder: (_, _) =>
                         Divider(height: 1, color: AppColors.border(context)),
                     itemBuilder: (_, index) {
                       final entry = timelineEntries[index];
-                      final timeFmt = DateFormat('HH:mm:ss');
+                      final timeFmt = DateFormat('HH:mm');
                       final isPaid = entry.paidEvent != null;
-                      return ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 2,
-                        ),
-                        leading: Text(
-                          timeFmt.format(entry.timestamp),
-                          style: TextStyle(
-                            color: AppColors.muted(context),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        title: Text(
-                          isPaid
-                              ? '${entry.paidEvent!.memberName} paid - ${ordersNotifier.getCountForMember(entry.paidEvent!.memberId)} piv'
-                              : entry.order!.memberName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: isPaid ? AppColors.success : null,
-                          ),
-                        ),
-                        trailing: isPaid
-                            ? const Icon(
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 58,
+                              child: Text(
+                                timeFmt.format(entry.timestamp),
+                                style: TextStyle(
+                                  color: AppColors.muted(context),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isPaid
+                                    ? '${entry.paidEvent!.memberName} paid - ${ordersNotifier.getCountForPaidEvent(entry.paidEvent!.memberId, entry.paidEvent!.timestamp)} piv'
+                                    : entry.order!.memberName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: isPaid ? AppColors.success : null,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            if (isPaid)
+                              const Icon(
                                 Icons.check_circle,
                                 color: AppColors.success,
                                 size: 18,
                               )
-                            : Text(
+                            else
+                              Text(
                                 '+${entry.order!.quantity}',
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -324,7 +359,7 @@ class _MemberEventTimeline extends ConsumerWidget {
     final events = ref.watch(tableEventsProvider(tableId));
     ref.watch(ordersProvider(tableId));
     final ordersNotifier = ref.read(ordersProvider(tableId).notifier);
-    final timeFmt = DateFormat('HH:mm:ss');
+    final timeFmt = DateFormat('HH:mm');
 
     return AppSurfaceCard(
       padding: EdgeInsets.zero,
@@ -339,38 +374,50 @@ class _MemberEventTimeline extends ConsumerWidget {
           : ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 8),
               itemCount: events.length,
               separatorBuilder: (_, _) =>
                   Divider(height: 1, color: AppColors.border(context)),
               itemBuilder: (_, index) {
                 final event = events[index];
                 final isPaid = event.type == 'paid';
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 2,
-                  ),
-                  leading: Icon(
-                    isPaid ? Icons.check_circle : Icons.local_drink_outlined,
-                    color: isPaid ? AppColors.success : AppColors.primary,
-                    size: 18,
-                  ),
-                  title: Text(
-                    isPaid
-                        ? '${event.memberName} paid - ${ordersNotifier.getCountForMember(event.memberId)} piv'
-                        : '${event.memberName} came back for more',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: isPaid ? AppColors.success : null,
-                    ),
-                  ),
-                  trailing: Text(
-                    timeFmt.format(event.timestamp),
-                    style: TextStyle(
-                      color: AppColors.muted(context),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          isPaid
+                              ? Icons.check_circle
+                              : Icons.local_drink_outlined,
+                          color: isPaid ? AppColors.success : AppColors.primary,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          isPaid
+                              ? '${event.memberName} paid - ${ordersNotifier.getCountForPaidEvent(event.memberId, event.timestamp)} piv'
+                              : '${event.memberName} came back for more',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isPaid ? AppColors.success : null,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        timeFmt.format(event.timestamp),
+                        style: TextStyle(
+                          color: AppColors.muted(context),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -383,11 +430,17 @@ class _MemberSummaryTile extends StatefulWidget {
   final MemberModel member;
   final int count;
   final List<OrderModel> orders;
+  final List<TableEventModel> paidEvents;
+  final Map<String, int> paidEventCounts;
+  final int? lastPaidCount;
 
   const _MemberSummaryTile({
     required this.member,
     required this.count,
     required this.orders,
+    required this.paidEvents,
+    required this.paidEventCounts,
+    required this.lastPaidCount,
   });
 
   @override
@@ -399,7 +452,17 @@ class _MemberSummaryTileState extends State<_MemberSummaryTile> {
 
   @override
   Widget build(BuildContext context) {
-    final timeFmt = DateFormat('HH:mm:ss');
+    final timeFmt = DateFormat('HH:mm');
+    final activityEntries = <_MemberActivityEntry>[
+      ...widget.orders.map(
+        (order) =>
+            _MemberActivityEntry(timestamp: order.timestamp, order: order),
+      ),
+      ...widget.paidEvents.map(
+        (event) =>
+            _MemberActivityEntry(timestamp: event.timestamp, paidEvent: event),
+      ),
+    ]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     return AppSurfaceCard(
       padding: EdgeInsets.zero,
@@ -420,9 +483,9 @@ class _MemberSummaryTileState extends State<_MemberSummaryTile> {
               widget.member.name,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: widget.member.isPaid
+            subtitle: widget.lastPaidCount != null && widget.lastPaidCount! > 0
                 ? Text(
-                    'paid - ${widget.count} piv',
+                    'Last paid ${widget.lastPaidCount} piv.',
                     style: const TextStyle(
                       color: AppColors.success,
                       fontWeight: FontWeight.w600,
@@ -449,35 +512,47 @@ class _MemberSummaryTileState extends State<_MemberSummaryTile> {
             ),
             onTap: () => setState(() => _expanded = !_expanded),
           ),
-          if (_expanded && widget.orders.isNotEmpty)
+          if (_expanded && activityEntries.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Column(
-                children: widget.orders
-                    .map(
-                      (order) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.local_bar_outlined,
-                              size: 14,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              timeFmt.format(order.timestamp),
+                children: [
+                  ...activityEntries.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            entry.paidEvent != null
+                                ? Icons.check_circle
+                                : Icons.local_bar_outlined,
+                            size: 14,
+                            color: entry.paidEvent != null
+                                ? AppColors.success
+                                : AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              entry.paidEvent != null
+                                  ? '${timeFmt.format(entry.timestamp)} - ${widget.member.name} paid - ${widget.paidEventCounts[entry.paidEvent!.id] ?? 0} piv'
+                                  : timeFmt.format(entry.timestamp),
                               style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.muted(context),
-                                fontWeight: FontWeight.w500,
+                                color: entry.paidEvent != null
+                                    ? AppColors.success
+                                    : AppColors.muted(context),
+                                fontWeight: entry.paidEvent != null
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    )
-                    .toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

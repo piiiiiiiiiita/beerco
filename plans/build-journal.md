@@ -2,6 +2,20 @@
 
 Záznamy chronologicky, nejnovější nahoře.
 
+## 2026-07-09 — local paid notifications + realtime push plan
+
+### Nové funkce
+- Lokální push notifikace při `paid` (`flutter_local_notifications`) — trigger jen když vznikne nový paid event s reálnými novými orders. Pokud člen po `active_again` znovu zaplatí bez nových orders, notifikace se neposílá.
+
+### Plán
+- Budoucí online realtime varianta:
+  - autentizace uživatelů účtem
+  - join stolu přes kód nebo QR
+  - realtime synchronizace změn stolu mezi zařízeními
+  - server-side paid event jako zdroj pravdy
+  - remote push notifikace ostatním členům stolu při `paid`
+  - deduplikace notifikací mezi foreground local UI feedback a background remote push
+
 ## 2026-07-07 — full-width stacked dialog actions
 
 ### Nové funkce

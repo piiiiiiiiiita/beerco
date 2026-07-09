@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:beerco/core/utils/notification_service.dart';
 import 'package:beerco/features/table/data/models/table_event_model.dart';
 import 'package:beerco/features/table/data/models/table_model.dart';
 import 'package:beerco/features/table/data/models/member_model.dart';
@@ -68,8 +69,15 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
   }
 
   Future<void> markPaid(String memberId) async {
-    await _repo.markMemberPaid(memberId);
+    final createdPaidEvent = await _repo.markMemberPaid(memberId);
     refresh();
+    if (!createdPaidEvent) return;
+
+    final member = state.where((m) => m.id == memberId).firstOrNull;
+    await NotificationService.instance.showMemberPaidNotification(
+      memberName: member?.name ?? 'A member',
+      tableName: _repo.getTable(_tableId)?.name,
+    );
   }
 
   Future<void> markUnpaid(String memberId) async {

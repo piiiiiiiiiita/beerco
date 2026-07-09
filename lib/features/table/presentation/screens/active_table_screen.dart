@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/services.dart';
@@ -24,15 +27,62 @@ class ActiveTableScreen extends ConsumerStatefulWidget {
   ConsumerState<ActiveTableScreen> createState() => _ActiveTableScreenState();
 }
 
-class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
+class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen>
+    with TickerProviderStateMixin {
   final _scrollController = ScrollController();
+  late final AnimationController _undoCountdownController;
+  late final AnimationController _undoBannerController;
   bool _showUndo = false;
   String? _undoMessage;
+  int _undoTotalSeconds = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _undoCountdownController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 3))
+          ..addStatusListener((status) {
+            if (status == AnimationStatus.completed && mounted) {
+              _hideUndoBanner();
+            }
+          });
+    _undoBannerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      reverseDuration: const Duration(milliseconds: 180),
+    );
+  }
 
   @override
   void dispose() {
+    _undoBannerController.dispose();
+    _undoCountdownController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _showUndoBanner(String message, {required int seconds}) {
+    _undoCountdownController
+      ..stop()
+      ..duration = Duration(seconds: seconds);
+    _undoBannerController.stop();
+    setState(() {
+      _undoTotalSeconds = seconds;
+      _showUndo = true;
+      _undoMessage = message;
+    });
+    _undoBannerController.forward(from: 0);
+    _undoCountdownController.forward(from: 0);
+  }
+
+  Future<void> _hideUndoBanner() async {
+    if (!_showUndo) return;
+    await _undoBannerController.reverse();
+    if (!mounted) return;
+    setState(() {
+      _showUndo = false;
+      _undoMessage = null;
+    });
   }
 
   Future<String?> _showTableNameDialog(String initialValue) async {
@@ -199,11 +249,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
         .getCountForMember(member.id);
 
     if (orderCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Members with existing orders cannot be removed'),
-        ),
-      );
+      showAppToast(context, 'Members with existing orders cannot be removed');
       return;
     }
 
@@ -281,13 +327,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
     await ref
         .read(ordersProvider(widget.tableId).notifier)
         .addOrder(member.id, member.name);
-    setState(() {
-      _showUndo = true;
-      _undoMessage = '+1 for ${member.name}';
-    });
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) setState(() => _showUndo = false);
-    });
+    _showUndoBanner('+1 for ${member.name}', seconds: 3);
   }
 
   void _removeLastOrder(MemberModel member) async {
@@ -298,16 +338,15 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
     await notifier.removeLastOrderForMember(member.id);
     if (!mounted) return;
 
-    setState(() {
-      _showUndo = false;
-      _undoMessage = null;
-    });
+    _undoCountdownController.stop();
+    _hideUndoBanner();
   }
 
   void _undoLast() async {
     HapticFeedback.mediumImpact();
     await ref.read(ordersProvider(widget.tableId).notifier).undoLastOrder();
-    setState(() => _showUndo = false);
+    _undoCountdownController.stop();
+    _hideUndoBanner();
   }
 
   void _addForAll() async {
@@ -348,13 +387,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
             members.map((m) => m.id).toList(),
             members.map((m) => m.name).toList(),
           );
-      setState(() {
-        _showUndo = true;
-        _undoMessage = '+1 for everyone (${members.length})';
-      });
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) setState(() => _showUndo = false);
-      });
+      _showUndoBanner('+1 for everyone (${members.length})', seconds: 5);
     }
   }
 
@@ -379,13 +412,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
             members.map((m) => m.name).toList(),
             confirmed,
           );
-      setState(() {
-        _showUndo = true;
-        _undoMessage = 'Random +$confirmed orders added';
-      });
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) setState(() => _showUndo = false);
-      });
+      _showUndoBanner('Random +$confirmed orders added', seconds: 5);
     }
   }
 
@@ -488,6 +515,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
     final activeMembers = members.where((m) => !m.isPaid).toList();
     final paidMembers = members.where((m) => m.isPaid).toList();
     final topPad = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
+    final undoBottomOffset = MediaQuery.of(context).padding.bottom + 86;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -559,12 +587,33 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
                 const SizedBox(height: 16),
                 const AppSectionHeader(title: 'Paid & gone'),
                 const SizedBox(height: 12),
-                ...paidMembers.map(
-                  (m) => _MemberCard(
+                ...paidMembers.map((m) {
+                  final ordersNotifier = ref.watch(
+                    ordersProvider(widget.tableId).notifier,
+                  );
+                  final allPaidEvents = ref
+                      .watch(tableEventsProvider(widget.tableId))
+                      .where((event) => event.type == 'paid')
+                      .where((event) => event.memberId == m.id)
+                      .toList();
+                  final paidEventCounts = {
+                    for (final event in allPaidEvents)
+                      event.id: ordersNotifier.getCountForPaidEvent(
+                        m.id,
+                        event.timestamp,
+                      ),
+                  };
+                  final paidEvents = allPaidEvents
+                      .where((event) => (paidEventCounts[event.id] ?? 0) > 0)
+                      .toList();
+                  final lastPaidEvent = paidEvents.lastOrNull;
+                  final lastPaidCount = lastPaidEvent == null
+                      ? null
+                      : paidEventCounts[lastPaidEvent.id];
+
+                  return _MemberCard(
                     member: m,
-                    orderCount: ref
-                        .watch(ordersProvider(widget.tableId).notifier)
-                        .getCountForMember(m.id),
+                    orderCount: ordersNotifier.getTotalCountForMember(m.id),
                     lastOrderTime: null,
                     onTap: () => _showPaidMemberDialog(m),
                     onDecrement: null,
@@ -572,52 +621,94 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
                     isPaid: true,
                     onEdit: () => _renameMember(m),
                     onDelete: () => _removeMember(m),
+                    lastPaidCount: lastPaidCount,
                     onPaidToggle: () async {
                       await ref
                           .read(membersProvider(widget.tableId).notifier)
                           .markUnpaid(m.id);
                       ref.invalidate(tableEventsProvider(widget.tableId));
                     },
-                  ),
-                ),
+                  );
+                }),
               ],
             ],
           ),
-          if (_showUndo)
+          if (_showUndo && _undoMessage != null)
             Positioned(
-              bottom: 104,
+              bottom: undoBottomOffset,
               left: 16,
               right: 16,
-              child: Material(
-                borderRadius: BorderRadius.circular(20),
-                color: AppColors.menuSurface(context),
-                elevation: 8,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _undoMessage ?? '',
-                        style: TextStyle(
-                          color: AppColors.onSurface(context),
-                          fontWeight: FontWeight.w500,
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: _undoBannerController,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                ),
+                child: SlideTransition(
+                  position:
+                      Tween<Offset>(
+                        begin: const Offset(0, 0.12),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: _undoBannerController,
+                          curve: Curves.easeOutCubic,
+                          reverseCurve: Curves.easeInCubic,
                         ),
                       ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: _undoLast,
-                        child: const Text(
-                          'UNDO',
-                          style: TextStyle(
-                            color: Color(0xFFFDE68A),
-                            fontWeight: FontWeight.w700,
+                  child: Material(
+                    borderRadius: BorderRadius.circular(999),
+                    color: AppColors.chipDark,
+                    elevation: 8,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          AnimatedBuilder(
+                            animation: _undoCountdownController,
+                            builder: (context, _) {
+                              final remaining = math.max(
+                                1,
+                                (_undoTotalSeconds *
+                                        (1 - _undoCountdownController.value))
+                                    .ceil(),
+                              );
+                              return _UndoCountdownBadge(
+                                progress: 1 - _undoCountdownController.value,
+                                remaining: remaining,
+                              );
+                            },
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _undoMessage!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _undoLast,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.secondary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: const Text(
+                              'UNDO',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -653,6 +744,46 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen> {
     );
   }
 }
+
+class _UndoCountdownBadge extends StatelessWidget {
+  final double progress;
+  final int remaining;
+
+  const _UndoCountdownBadge({required this.progress, required this.remaining});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 2.4,
+              backgroundColor: Colors.white.withValues(alpha: 0.16),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          Text(
+            '$remaining',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _orderLabel(int count) => count == 1 ? 'order' : 'orders';
 
 class _ActiveTableGlowBackdrop extends StatelessWidget {
   const _ActiveTableGlowBackdrop();
@@ -720,6 +851,7 @@ class _MemberCard extends StatelessWidget {
   final Future<void> Function()? onDelete;
   final Future<void> Function()? onPaidToggle;
   final bool isPaid;
+  final int? lastPaidCount;
 
   const _MemberCard({
     required this.member,
@@ -732,6 +864,7 @@ class _MemberCard extends StatelessWidget {
     required this.onDelete,
     required this.onPaidToggle,
     this.isPaid = false,
+    this.lastPaidCount,
   });
 
   @override
@@ -740,6 +873,7 @@ class _MemberCard extends StatelessWidget {
     final paidFmt = member.paidAt == null
         ? null
         : timeFmt.format(member.paidAt!);
+    final radius = BorderRadius.circular(20);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Slidable(
@@ -750,7 +884,7 @@ class _MemberCard extends StatelessWidget {
           children: [
             SlidableAction(
               onPressed: (_) => onEdit?.call(),
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppColors.secondary,
               foregroundColor: Colors.white,
               icon: Icons.edit_outlined,
               label: 'Edit',
@@ -787,102 +921,287 @@ class _MemberCard extends StatelessWidget {
         child: Opacity(
           opacity: isPaid ? 0.6 : 1.0,
           child: AppSurfaceCard(
-            borderRadius: BorderRadius.circular(20),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            borderRadius: radius,
+            padding: EdgeInsets.zero,
             onTap: onTap,
             onLongPress: onLongPress,
-            child: Row(
-              children: [
-                MemberAvatar(
-                  memberId: member.id,
-                  avatarAsset: member.avatarAsset,
-                  name: member.name,
-                  diameter: 46,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              member.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+            child: ClipRRect(
+              borderRadius: radius,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: _OrderWaveFill(
+                      lastOrderTime: !isPaid ? lastOrderTime : null,
+                      borderRadius: radius,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: [
+                        MemberAvatar(
+                          memberId: member.id,
+                          avatarAsset: member.avatarAsset,
+                          name: member.name,
+                          diameter: 46,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      member.name,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isPaid) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 16,
+                                      color: AppColors.success,
+                                    ),
+                                  ],
+                                ],
                               ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (isPaid) ...[
-                            const SizedBox(width: 6),
-                            const Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: AppColors.success,
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      if (isPaid && paidFmt != null)
-                        Text(
-                          'Paid at $paidFmt',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        )
-                      else if (lastOrderTime != null)
-                        Text(
-                          'Last: ${timeFmt.format(lastOrderTime!)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.muted(context),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        )
-                      else
-                        Text(
-                          'No orders yet',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.muted(context),
-                            fontWeight: FontWeight.w500,
+                              const SizedBox(height: 4),
+                              if (isPaid && paidFmt != null)
+                                Text(
+                                  lastPaidCount != null && lastPaidCount! > 0
+                                      ? 'Last paid at $paidFmt - $lastPaidCount ${_orderLabel(lastPaidCount!)}'
+                                      : 'Paid at $paidFmt',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              else if (lastOrderTime != null)
+                                Text(
+                                  'Last: ${timeFmt.format(lastOrderTime!)}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.muted(context),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  'No orders yet',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.muted(context),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                if (!isPaid)
-                  AppIconCircleButton(
-                    icon: Icons.remove_rounded,
-                    onPressed: orderCount > 0 ? onDecrement : null,
-                    foregroundColor: AppColors.muted(context),
-                    backgroundColor: AppColors.chip(context),
-                  ),
-                const SizedBox(width: 8),
-                Text(
-                  '$orderCount',
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-                if (!isPaid) ...[
-                  const SizedBox(width: 8),
-                  AppIconCircleButton(
-                    icon: Icons.add_rounded,
-                    onPressed: onTap,
-                    foregroundColor: Colors.white,
-                    backgroundColor: AppColors.primary,
+                        if (!isPaid)
+                          AppIconCircleButton(
+                            icon: Icons.remove_rounded,
+                            onPressed: orderCount > 0 ? onDecrement : null,
+                            foregroundColor: AppColors.muted(context),
+                            backgroundColor: AppColors.chip(context),
+                          ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$orderCount',
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        if (!isPaid) ...[
+                          const SizedBox(width: 8),
+                          AppIconCircleButton(
+                            icon: Icons.add_rounded,
+                            onPressed: onTap,
+                            foregroundColor: Colors.white,
+                            backgroundColor: AppColors.primary,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
-              ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderWaveFill extends StatefulWidget {
+  final DateTime? lastOrderTime;
+  final BorderRadius borderRadius;
+
+  const _OrderWaveFill({
+    required this.lastOrderTime,
+    required this.borderRadius,
+  });
+
+  @override
+  State<_OrderWaveFill> createState() => _OrderWaveFillState();
+}
+
+class _OrderWaveFillState extends State<_OrderWaveFill>
+    with TickerProviderStateMixin {
+  static const _fullFill = 0.9;
+  static const _waveLoop = Duration(seconds: 252); // lcm(7, 9, 12)
+  static const _fillDuration = Duration(seconds: 1);
+  static const _drainDuration = Duration(minutes: 5);
+
+  late final AnimationController _waveController;
+  late final AnimationController _fillController;
+  double _fillFrom = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _waveController = AnimationController(vsync: this, duration: _waveLoop)
+      ..repeat();
+    _fillController = AnimationController(vsync: this, duration: _fillDuration);
+  }
+
+  @override
+  void dispose() {
+    _fillController.dispose();
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OrderWaveFill oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.lastOrderTime != oldWidget.lastOrderTime &&
+        widget.lastOrderTime != null) {
+      _fillFrom = _currentFill(DateTime.now(), oldWidget.lastOrderTime);
+      _fillController.forward(from: 0);
+    }
+  }
+
+  double _targetFill(DateTime now, DateTime? triggerTime) {
+    if (triggerTime == null) return 0;
+    final age = now.difference(triggerTime);
+    if (age >= _drainDuration) return 0;
+    final progress = age.inMilliseconds / _drainDuration.inMilliseconds;
+    return (_fullFill * (1 - progress)).clamp(0, _fullFill);
+  }
+
+  double _currentFill(DateTime now, DateTime? triggerTime) {
+    final targetFill = _targetFill(now, triggerTime);
+    if (!_fillController.isAnimating || widget.lastOrderTime == null) {
+      return targetFill;
+    }
+    final progress = Curves.easeOutCubic.transform(_fillController.value);
+    return lerpDouble(_fillFrom, targetFill, progress) ?? targetFill;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_waveController, _fillController]),
+        builder: (context, _) {
+          final fill = _currentFill(DateTime.now(), widget.lastOrderTime);
+          if (fill <= 0.001) return const SizedBox.shrink();
+
+          return Opacity(
+            opacity: 0.2,
+            child: ClipRRect(
+              borderRadius: widget.borderRadius,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final waveSize = constraints.maxWidth * 2;
+                  final emptyTop = constraints.maxHeight + 18;
+                  final fullTop = constraints.maxHeight * 0.1;
+                  final fillProgress = (fill / _fullFill).clamp(0.0, 1.0);
+                  final top =
+                      lerpDouble(emptyTop, fullTop, fillProgress) ?? emptyTop;
+                  final baseTurns = _waveController.value;
+
+                  return Stack(
+                    children: [
+                      _WaveBlob(
+                        top: top,
+                        left: -constraints.maxWidth * 0.5,
+                        size: waveSize,
+                        turns: baseTurns * 36,
+                        color: AppColors.primary,
+                      ),
+                      _WaveBlob(
+                        top: top + 8,
+                        left: -constraints.maxWidth * 0.48,
+                        size: waveSize,
+                        turns: baseTurns * 28,
+                        color: AppColors.secondary,
+                      ),
+                      _WaveBlob(
+                        top: top + 14,
+                        left: -constraints.maxWidth * 0.54,
+                        size: waveSize * 0.96,
+                        turns: baseTurns * 21,
+                        color: AppColors.secondarySoft,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WaveBlob extends StatelessWidget {
+  final double top;
+  final double left;
+  final double size;
+  final double turns;
+  final Color color;
+
+  const _WaveBlob({
+    required this.top,
+    required this.left,
+    required this.size,
+    required this.turns,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: top,
+      left: left,
+      child: Transform.rotate(
+        angle: turns * math.pi * 2,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(size * 0.36),
+              topRight: Radius.circular(size * 0.44),
+              bottomLeft: Radius.circular(size * 0.42),
+              bottomRight: Radius.circular(size * 0.34),
             ),
           ),
         ),

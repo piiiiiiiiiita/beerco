@@ -148,8 +148,19 @@ void main() {
 
   test('member paid and active again events are logged', () async {
     final repository = TableRepository();
+    final ordersBox = Hive.box<OrderModel>('orders');
     final table = await repository.createTable('Friday beers');
     final member = await repository.addMember(table.id, 'Petr');
+
+    await ordersBox.add(
+      OrderModel(
+        id: 'order-before-paid',
+        tableId: table.id,
+        memberId: member.id,
+        memberName: member.name,
+        timestamp: DateTime.now(),
+      ),
+    );
 
     await repository.markMemberPaid(member.id);
     await repository.markMemberUnpaid(member.id);
@@ -157,4 +168,37 @@ void main() {
     final events = repository.getEventsForTable(table.id);
     expect(events.map((event) => event.type), ['paid', 'active_again']);
   });
+
+  test(
+    'marking paid again without new orders restores previous paid state and does not log 0 paid',
+    () async {
+      final repository = TableRepository();
+      final ordersBox = Hive.box<OrderModel>('orders');
+      final table = await repository.createTable('Friday beers');
+      final member = await repository.addMember(table.id, 'Petr');
+
+      await ordersBox.add(
+        OrderModel(
+          id: 'order-1',
+          tableId: table.id,
+          memberId: member.id,
+          memberName: member.name,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      await repository.markMemberPaid(member.id);
+      final firstPaidAt = repository.getMembersForTable(table.id).single.paidAt;
+
+      await repository.markMemberUnpaid(member.id);
+      await repository.markMemberPaid(member.id);
+
+      final updatedMember = repository.getMembersForTable(table.id).single;
+      final events = repository.getEventsForTable(table.id);
+
+      expect(updatedMember.isPaid, isTrue);
+      expect(updatedMember.paidAt, firstPaidAt);
+      expect(events.map((event) => event.type), ['paid', 'active_again']);
+    },
+  );
 }

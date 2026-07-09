@@ -54,9 +54,7 @@ class _NewTableScreenState extends ConsumerState<NewTableScreen> {
 
   Future<void> _createTable() async {
     if (_members.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Add at least one member')));
+      showAppToast(context, 'Add at least one member');
       return;
     }
 

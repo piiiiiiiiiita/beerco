@@ -353,3 +353,89 @@ class AppDialogActions extends StatelessWidget {
     );
   }
 }
+
+void showAppToast(
+  BuildContext context,
+  String message, {
+  Duration duration = const Duration(seconds: 2),
+}) {
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+
+  final controller = AnimationController(
+    vsync: overlay,
+    duration: const Duration(milliseconds: 240),
+    reverseDuration: const Duration(milliseconds: 180),
+  );
+  final animation = CurvedAnimation(
+    parent: controller,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (overlayContext) {
+      final bottomInset = MediaQuery.of(overlayContext).padding.bottom + 12;
+
+      return Positioned(
+        left: 12,
+        right: 12,
+        bottom: bottomInset,
+        child: IgnorePointer(
+          child: FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.12),
+                end: Offset.zero,
+              ).animate(animation),
+              child: Material(
+                color: Colors.transparent,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.darkButton,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: Text(
+                      message,
+                      style: Theme.of(overlayContext).textTheme.bodyLarge
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  overlay.insert(entry);
+  controller.forward();
+
+  Future<void>(() async {
+    await Future<void>.delayed(duration);
+    if (controller.status != AnimationStatus.dismissed) {
+      await controller.reverse();
+    }
+    entry.remove();
+    controller.dispose();
+  });
+}

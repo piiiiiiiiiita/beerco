@@ -93,6 +93,7 @@ class TableRepository {
     required String memberId,
     required String memberName,
     required String type,
+    DateTime? timestamp,
   }) async {
     await _tableEventBox.add(
       TableEventModel(
@@ -101,7 +102,7 @@ class TableRepository {
         memberId: memberId,
         memberName: memberName,
         type: type,
-        timestamp: DateTime.now(),
+        timestamp: timestamp ?? DateTime.now(),
       ),
     );
   }
@@ -135,19 +136,47 @@ class TableRepository {
     await member.delete();
   }
 
-  Future<void> markMemberPaid(String memberId) async {
+  Future<bool> markMemberPaid(String memberId) async {
     final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
-    if (member != null) {
-      member.isPaid = true;
-      member.paidAt = DateTime.now();
+    if (member == null) return false;
+
+    final latestActiveAgain = _latestEventTimestamp(
+      tableId: member.tableId,
+      memberId: member.id,
+      type: 'active_again',
+    );
+    final hasOrdersInCurrentSegment = _hasOrdersInCurrentSegment(
+      tableId: member.tableId,
+      memberId: member.id,
+      segmentStart: latestActiveAgain,
+    );
+
+    member.isPaid = true;
+
+    if (!hasOrdersInCurrentSegment) {
+      member.paidAt = latestActiveAgain == null
+          ? null
+          : _latestEventTimestamp(
+              tableId: member.tableId,
+              memberId: member.id,
+              type: 'paid',
+              before: latestActiveAgain,
+            );
       await member.save();
-      await addEvent(
-        tableId: member.tableId,
-        memberId: member.id,
-        memberName: member.name,
-        type: 'paid',
-      );
+      return false;
     }
+
+    final paidAt = DateTime.now();
+    member.paidAt = paidAt;
+    await member.save();
+    await addEvent(
+      tableId: member.tableId,
+      memberId: member.id,
+      memberName: member.name,
+      type: 'paid',
+      timestamp: paidAt,
+    );
+    return true;
   }
 
   Future<void> markMemberUnpaid(String memberId) async {
@@ -163,5 +192,43 @@ class TableRepository {
         type: 'active_again',
       );
     }
+  }
+
+  bool _hasOrdersInCurrentSegment({
+    required String tableId,
+    required String memberId,
+    DateTime? segmentStart,
+  }) {
+    return _orderBox.values
+        .where(
+          (order) => order.tableId == tableId && order.memberId == memberId,
+        )
+        .any(
+          (order) =>
+              segmentStart == null || order.timestamp.isAfter(segmentStart),
+        );
+  }
+
+  DateTime? _latestEventTimestamp({
+    required String tableId,
+    required String memberId,
+    required String type,
+    DateTime? before,
+  }) {
+    final timestamps =
+        _tableEventBox.values
+            .where(
+              (event) =>
+                  event.tableId == tableId &&
+                  event.memberId == memberId &&
+                  event.type == type,
+            )
+            .where(
+              (event) => before == null || event.timestamp.isBefore(before),
+            )
+            .map((event) => event.timestamp)
+            .toList()
+          ..sort();
+    return timestamps.lastOrNull;
   }
 }
