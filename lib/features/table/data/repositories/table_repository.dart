@@ -133,7 +133,37 @@ class TableRepository {
   }
 
   Future<void> removeMember(MemberModel member) async {
+    member.timerEndsAt = null;
     await member.delete();
+  }
+
+  Future<MemberModel?> setMemberTimer(String memberId, DateTime endsAt) async {
+    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    if (member == null) return null;
+    member.timerEndsAt = endsAt;
+    await member.save();
+    return member;
+  }
+
+  Future<MemberModel?> clearMemberTimer(String memberId) async {
+    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    if (member == null) return null;
+    member.timerEndsAt = null;
+    await member.save();
+    return member;
+  }
+
+  Future<MemberModel?> extendMemberTimer(String memberId, int minutes) async {
+    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    if (member == null) return null;
+    final base =
+        member.timerEndsAt != null &&
+            member.timerEndsAt!.isAfter(DateTime.now())
+        ? member.timerEndsAt!
+        : DateTime.now();
+    member.timerEndsAt = base.add(Duration(minutes: minutes));
+    await member.save();
+    return member;
   }
 
   Future<bool> markMemberPaid(String memberId) async {
@@ -152,6 +182,7 @@ class TableRepository {
     );
 
     member.isPaid = true;
+    member.timerEndsAt = null;
 
     if (!hasOrdersInCurrentSegment) {
       member.paidAt = latestActiveAgain == null

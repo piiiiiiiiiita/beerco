@@ -86,6 +86,12 @@ flutter build ios --release
 release pro MAI iphone:
 flutter run --release -d 00008150-000428EC36FB801C
 
+NOTE: Udělej clean před každým build:
+flutter clean
+flutter pub get
+flutter run --release -d 00008150-000428EC36FB801C
+
+
 Pro Android release APK použijte:
 flutter build apk --release
 Výstup pak najdete typicky tady:

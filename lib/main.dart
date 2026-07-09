@@ -9,6 +9,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHive();
   await NotificationService.instance.initialize();
+  await NotificationService.instance.requestPermissions();
   runApp(const ProviderScope(child: BeerCoApp()));
 }
 

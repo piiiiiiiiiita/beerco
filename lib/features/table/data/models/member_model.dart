@@ -25,6 +25,9 @@ class MemberModel extends HiveObject {
   @HiveField(6)
   String? avatarAsset;
 
+  @HiveField(7)
+  DateTime? timerEndsAt;
+
   MemberModel({
     required this.id,
     required this.tableId,
@@ -33,5 +36,6 @@ class MemberModel extends HiveObject {
     this.isPaid = false,
     this.paidAt,
     this.avatarAsset,
+    this.timerEndsAt,
   });
 }

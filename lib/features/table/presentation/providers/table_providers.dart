@@ -58,17 +58,30 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
     state = _repo.getMembersForTable(_tableId);
   }
 
-  Future<void> addMember(String name, {String? emoji, String? avatarAsset}) async {
-    await _repo.addMember(_tableId, name, emoji: emoji, avatarAsset: avatarAsset);
+  Future<void> addMember(
+    String name, {
+    String? emoji,
+    String? avatarAsset,
+  }) async {
+    await _repo.addMember(
+      _tableId,
+      name,
+      emoji: emoji,
+      avatarAsset: avatarAsset,
+    );
     refresh();
   }
 
   Future<void> removeMember(MemberModel member) async {
+    await NotificationService.instance.cancelMemberTimerNotifications(
+      member.id,
+    );
     await _repo.removeMember(member);
     refresh();
   }
 
   Future<void> markPaid(String memberId) async {
+    await NotificationService.instance.cancelMemberTimerNotifications(memberId);
     final createdPaidEvent = await _repo.markMemberPaid(memberId);
     refresh();
     if (!createdPaidEvent) return;
@@ -82,6 +95,24 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
 
   Future<void> markUnpaid(String memberId) async {
     await _repo.markMemberUnpaid(memberId);
+    refresh();
+  }
+
+  Future<void> setTimerAt(String memberId, DateTime endsAt) async {
+    final member = await _repo.setMemberTimer(memberId, endsAt);
+    refresh();
+    if (member == null || member.timerEndsAt == null) return;
+    await NotificationService.instance.scheduleMemberTimerNotifications(
+      memberId: member.id,
+      memberName: member.name,
+      endsAt: member.timerEndsAt!,
+      tableName: _repo.getTable(_tableId)?.name,
+    );
+  }
+
+  Future<void> clearTimer(String memberId) async {
+    await NotificationService.instance.cancelMemberTimerNotifications(memberId);
+    await _repo.clearMemberTimer(memberId);
     refresh();
   }
 

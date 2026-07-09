@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/services.dart';
@@ -209,6 +211,88 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen>
         .setAvatar(member, chosen);
   }
 
+  Future<void> _showTimerSheet(MemberModel member) async {
+    final now = DateTime.now();
+    final initial =
+        member.timerEndsAt != null && member.timerEndsAt!.isAfter(now)
+        ? member.timerEndsAt!
+        : now;
+    var selected = initial;
+
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border(context),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Text(
+                    'Set timer',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 216,
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                use24hFormat: true,
+                initialDateTime: initial,
+                onDateTimeChanged: (value) => selected = value,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              child: AppPrimaryButton(
+                label: 'Set time',
+                icon: Icons.timer_outlined,
+                onPressed: () => Navigator.pop(context, selected),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    var endsAt = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      picked.hour,
+      picked.minute,
+    );
+    if (!endsAt.isAfter(now)) {
+      endsAt = endsAt.add(const Duration(days: 1));
+    }
+    await ref
+        .read(membersProvider(widget.tableId).notifier)
+        .setTimerAt(member.id, endsAt);
+  }
+
   void _editMember(MemberModel member) {
     showModalBottomSheet(
       context: context,
@@ -236,6 +320,38 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen>
                 await _changeAvatar(member);
               },
             ),
+            if (!member.isPaid)
+              ListTile(
+                leading: const Icon(Icons.timer_outlined),
+                title: Text(
+                  member.timerEndsAt != null &&
+                          member.timerEndsAt!.isAfter(DateTime.now())
+                      ? 'Change timer'
+                      : 'Set timer',
+                ),
+                subtitle:
+                    member.timerEndsAt != null &&
+                        member.timerEndsAt!.isAfter(DateTime.now())
+                    ? Text(
+                        'Ends at ${DateFormat('HH:mm').format(member.timerEndsAt!)}',
+                      )
+                    : null,
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _showTimerSheet(member);
+                },
+              ),
+            if (!member.isPaid && member.timerEndsAt != null)
+              ListTile(
+                leading: const Icon(Icons.timer_off_outlined),
+                title: const Text('Clear timer'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await ref
+                      .read(membersProvider(widget.tableId).notifier)
+                      .clearTimer(member.id);
+                },
+              ),
             const SizedBox(height: 8),
           ],
         ),
@@ -432,6 +548,20 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen>
           Navigator.pop(context);
           await _changeAvatar(member);
         },
+        onTimer: member.isPaid
+            ? null
+            : () async {
+                Navigator.pop(context);
+                await _showTimerSheet(member);
+              },
+        onClearTimer: !member.isPaid && member.timerEndsAt != null
+            ? () async {
+                Navigator.pop(context);
+                await ref
+                    .read(membersProvider(widget.tableId).notifier)
+                    .clearTimer(member.id);
+              }
+            : null,
         onRemove: () async {
           Navigator.pop(context);
           await _removeMember(member);
@@ -573,6 +703,7 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen>
                   onTap: () => _addOrder(m),
                   onDecrement: () => _removeLastOrder(m),
                   onLongPress: () => _showMemberOptions(m),
+                  onTimer: () => _showTimerSheet(m),
                   onEdit: () => _renameMember(m),
                   onDelete: () => _removeMember(m),
                   onPaidToggle: () async {
@@ -847,6 +978,7 @@ class _MemberCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDecrement;
   final VoidCallback? onLongPress;
+  final VoidCallback? onTimer;
   final Future<void> Function()? onEdit;
   final Future<void> Function()? onDelete;
   final Future<void> Function()? onPaidToggle;
@@ -860,6 +992,7 @@ class _MemberCard extends StatelessWidget {
     required this.onTap,
     required this.onDecrement,
     required this.onLongPress,
+    this.onTimer,
     required this.onEdit,
     required this.onDelete,
     required this.onPaidToggle,
@@ -878,6 +1011,26 @@ class _MemberCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Slidable(
         key: ValueKey('member-${member.id}'),
+        startActionPane: !isPaid
+            ? ActionPane(
+                motion: const DrawerMotion(),
+                extentRatio: 0.26,
+                children: [
+                  SlidableAction(
+                    onPressed: (_) => onTimer?.call(),
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    icon: Icons.timer_outlined,
+                    label: 'Time',
+                    padding: EdgeInsets.zero,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                    ),
+                  ),
+                ],
+              )
+            : null,
         endActionPane: ActionPane(
           motion: const DrawerMotion(),
           extentRatio: 0.78,
@@ -987,6 +1140,9 @@ class _MemberCard extends StatelessWidget {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 )
+                              else if (member.timerEndsAt != null &&
+                                  member.timerEndsAt!.isAfter(DateTime.now()))
+                                _MemberTimerLine(endsAt: member.timerEndsAt!)
                               else if (lastOrderTime != null)
                                 Text(
                                   'Last: ${timeFmt.format(lastOrderTime!)}',
@@ -1046,6 +1202,109 @@ class _MemberCard extends StatelessWidget {
   }
 }
 
+class _MemberTimerLine extends StatefulWidget {
+  final DateTime endsAt;
+
+  const _MemberTimerLine({required this.endsAt});
+
+  @override
+  State<_MemberTimerLine> createState() => _MemberTimerLineState();
+}
+
+class _MemberTimerLineState extends State<_MemberTimerLine> {
+  late Timer _ticker;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = widget.endsAt.difference(_now);
+    if (remaining <= Duration.zero) {
+      return Text(
+        'Time is up',
+        style: TextStyle(
+          fontSize: 13,
+          color: AppColors.secondary,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    final endFmt = DateFormat('HH:mm').format(widget.endsAt);
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.secondary.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: AppColors.secondary.withValues(alpha: 0.24),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.timer_outlined,
+                size: 14,
+                color: AppColors.secondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _formatTimerRemaining(remaining),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          'Ends $endFmt',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatTimerRemaining(Duration remaining) {
+  if (remaining.inHours >= 1) {
+    final hours = remaining.inHours;
+    final minutes = remaining.inMinutes.remainder(60);
+    return minutes == 0 ? '${hours}h left' : '${hours}h ${minutes}m left';
+  }
+  if (remaining.inMinutes >= 1) {
+    return '${remaining.inMinutes}m left';
+  }
+  return '${remaining.inSeconds}s left';
+}
+
 class _OrderWaveFill extends StatefulWidget {
   final DateTime? lastOrderTime;
   final BorderRadius borderRadius;
@@ -1059,12 +1318,19 @@ class _OrderWaveFill extends StatefulWidget {
   State<_OrderWaveFill> createState() => _OrderWaveFillState();
 }
 
+// Waves na pozadí MemberCard, když přidáme objednávku, tak se naplní a pak postupně vyprchá, pokud nepřijdou další objednávky.
 class _OrderWaveFillState extends State<_OrderWaveFill>
     with TickerProviderStateMixin {
   static const _fullFill = 0.9;
-  static const _waveLoop = Duration(seconds: 252); // lcm(7, 9, 12)
-  static const _fillDuration = Duration(seconds: 1);
-  static const _drainDuration = Duration(minutes: 5);
+  static const _waveLoop = Duration(
+    seconds: 252,
+  ); // lcm(7, 9, 12), waves rotace
+  static const _fillDuration = Duration(
+    seconds: 1,
+  ); // animace naplnění po přidání objednávky
+  static const _drainDuration = Duration(
+    minutes: 5,
+  ); // čas, po kterém se fill vyprchá, pokud nepřijdou další objednávky
 
   late final AnimationController _waveController;
   late final AnimationController _fillController;
@@ -1122,7 +1388,7 @@ class _OrderWaveFillState extends State<_OrderWaveFill>
           if (fill <= 0.001) return const SizedBox.shrink();
 
           return Opacity(
-            opacity: 0.2,
+            opacity: 0.09, // wave fill opacity
             child: ClipRRect(
               borderRadius: widget.borderRadius,
               child: LayoutBuilder(
@@ -1214,6 +1480,8 @@ class _MemberOptionsSheet extends StatelessWidget {
   final MemberModel member;
   final VoidCallback onRename;
   final VoidCallback onChangeAvatar;
+  final VoidCallback? onTimer;
+  final VoidCallback? onClearTimer;
   final VoidCallback onRemove;
   final VoidCallback onPaidToggle;
 
@@ -1221,6 +1489,8 @@ class _MemberOptionsSheet extends StatelessWidget {
     required this.member,
     required this.onRename,
     required this.onChangeAvatar,
+    this.onTimer,
+    this.onClearTimer,
     required this.onRemove,
     required this.onPaidToggle,
   });
@@ -1250,6 +1520,30 @@ class _MemberOptionsSheet extends StatelessWidget {
             title: const Text('Change avatar'),
             onTap: onChangeAvatar,
           ),
+          if (onTimer != null)
+            ListTile(
+              leading: const Icon(Icons.timer_outlined),
+              title: Text(
+                member.timerEndsAt != null &&
+                        member.timerEndsAt!.isAfter(DateTime.now())
+                    ? 'Change timer'
+                    : 'Set timer',
+              ),
+              subtitle:
+                  member.timerEndsAt != null &&
+                      member.timerEndsAt!.isAfter(DateTime.now())
+                  ? Text(
+                      'Ends at ${DateFormat('HH:mm').format(member.timerEndsAt!)}',
+                    )
+                  : null,
+              onTap: onTimer,
+            ),
+          if (onClearTimer != null)
+            ListTile(
+              leading: const Icon(Icons.timer_off_outlined),
+              title: const Text('Clear timer'),
+              onTap: onClearTimer,
+            ),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: AppColors.danger),
             title: const Text('Remove'),

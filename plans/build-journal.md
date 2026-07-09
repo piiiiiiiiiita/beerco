@@ -6,6 +6,7 @@ Záznamy chronologicky, nejnovější nahoře.
 
 ### Nové funkce
 - Lokální push notifikace při `paid` (`flutter_local_notifications`) — trigger jen když vznikne nový paid event s reálnými novými orders. Pokud člen po `active_again` znovu zaplatí bez nových orders, notifikace se neposílá.
+- Per-member stay timer — lokálně uložený timer člena, plánované lock-screen notifikace `10 min before`, `5 min before`, `time is up` a akce `+10 min`.
 
 ### Plán
 - Budoucí online realtime varianta:
@@ -15,6 +16,8 @@ Záznamy chronologicky, nejnovější nahoře.
   - server-side paid event jako zdroj pravdy
   - remote push notifikace ostatním členům stolu při `paid`
   - deduplikace notifikací mezi foreground local UI feedback a background remote push
+  - realtime member timer sync mezi zařízeními a remote push/action routing pro `+10 min`
+  - živý countdown na lock screenu: iOS `Live Activities` / `ActivityKit` (není součástí současné local-notification implementace)
 
 ## 2026-07-07 — full-width stacked dialog actions
 

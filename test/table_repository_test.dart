@@ -201,4 +201,24 @@ void main() {
       expect(events.map((event) => event.type), ['paid', 'active_again']);
     },
   );
+
+  test('member timer can be set, extended and cleared', () async {
+    final repository = TableRepository();
+    final table = await repository.createTable('Friday beers');
+    final member = await repository.addMember(table.id, 'Petr');
+
+    final setMember = await repository.setMemberTimer(
+      member.id,
+      DateTime.now().add(const Duration(minutes: 30)),
+    );
+    expect(setMember?.timerEndsAt, isNotNull);
+    final firstEndsAt = setMember!.timerEndsAt!;
+
+    final extendedMember = await repository.extendMemberTimer(member.id, 10);
+    expect(extendedMember?.timerEndsAt, isNotNull);
+    expect(extendedMember!.timerEndsAt!.isAfter(firstEndsAt), isTrue);
+
+    final clearedMember = await repository.clearMemberTimer(member.id);
+    expect(clearedMember?.timerEndsAt, isNull);
+  });
 }

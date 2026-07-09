@@ -24,13 +24,14 @@ class MemberModelAdapter extends TypeAdapter<MemberModel> {
       isPaid: fields[4] == null ? false : fields[4] as bool,
       paidAt: fields[5] as DateTime?,
       avatarAsset: fields[6] as String?,
+      timerEndsAt: fields[7] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MemberModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class MemberModelAdapter extends TypeAdapter<MemberModel> {
       ..writeByte(5)
       ..write(obj.paidAt)
       ..writeByte(6)
-      ..write(obj.avatarAsset);
+      ..write(obj.avatarAsset)
+      ..writeByte(7)
+      ..write(obj.timerEndsAt);
   }
 
   @override
