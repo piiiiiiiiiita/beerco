@@ -1,13 +1,16 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:beerco/core/utils/hive_init.dart';
 import 'package:beerco/features/table/data/repositories/table_repository.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 const _timerCategoryId = 'member_timer_actions';
 const _timerActionExtend10 = 'extend_10';
+const _liveActivityChannel = MethodChannel('beerco/live_activity');
 
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(
@@ -123,25 +126,31 @@ class NotificationService {
     String? tableName,
   }) async {
     await requestPermissions();
-    await cancelMemberTimerNotifications(memberId);
+    await _cancelMemberTimerNotificationSlots(memberId);
+    await _startOrUpdateMemberTimerLiveActivity(
+      memberId: memberId,
+      memberName: memberName,
+      endsAt: endsAt,
+      tableName: tableName,
+    );
 
     final remaining = endsAt.difference(DateTime.now());
     final items =
         <({int id, DateTime at, String title, String body, bool isFinal})>[
-          if (remaining > const Duration(minutes: 20))
+          if (remaining > const Duration(minutes: 3))
             (
               id: _timerNotificationId(memberId, 1),
-              at: endsAt.subtract(const Duration(minutes: 10)),
+              at: endsAt.subtract(const Duration(minutes: 3)),
               title: '$memberName leaves in 10 min',
               body: tableName == null || tableName.isEmpty
                   ? 'Tap +10 min if they are staying longer.'
                   : '$tableName - tap +10 min if they are staying longer.',
               isFinal: false,
             ),
-          if (remaining > const Duration(minutes: 20))
+          if (remaining > const Duration(minutes: 3))
             (
               id: _timerNotificationId(memberId, 2),
-              at: endsAt.subtract(const Duration(minutes: 5)),
+              at: endsAt.subtract(const Duration(minutes: 2)),
               title: '$memberName leaves in 5 min',
               body: tableName == null || tableName.isEmpty
                   ? 'Tap +10 min if they are staying longer.'
@@ -202,6 +211,11 @@ class NotificationService {
 
   Future<void> cancelMemberTimerNotifications(String memberId) async {
     await initialize();
+    await _cancelMemberTimerNotificationSlots(memberId);
+    await _endMemberTimerLiveActivity(memberId);
+  }
+
+  Future<void> _cancelMemberTimerNotificationSlots(String memberId) async {
     for (final slot in [1, 2, 3]) {
       await _plugin.cancel(id: _timerNotificationId(memberId, slot));
     }
@@ -241,5 +255,41 @@ class NotificationService {
     }
     final base = hash % 214748364;
     return base * 10 + slot;
+  }
+
+  Future<void> _startOrUpdateMemberTimerLiveActivity({
+    required String memberId,
+    required String memberName,
+    required DateTime endsAt,
+    String? tableName,
+  }) async {
+    if (!Platform.isIOS || !endsAt.isAfter(DateTime.now())) return;
+
+    try {
+      await _liveActivityChannel.invokeMethod<bool>('startOrUpdateTimer', {
+        'memberId': memberId,
+        'memberName': memberName,
+        'tableName': tableName,
+        'endsAtMs': endsAt.millisecondsSinceEpoch,
+      });
+    } on MissingPluginException {
+      // Live Activities are iOS-native and unavailable in some Flutter engines.
+    } on PlatformException {
+      // Notification scheduling should still work if ActivityKit is disabled.
+    }
+  }
+
+  Future<void> _endMemberTimerLiveActivity(String memberId) async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _liveActivityChannel.invokeMethod<bool>('endTimer', {
+        'memberId': memberId,
+      });
+    } on MissingPluginException {
+      // Live Activities are iOS-native and unavailable in some Flutter engines.
+    } on PlatformException {
+      // Nothing else to clean up on the Flutter side.
+    }
   }
 }
