@@ -76,4 +76,5 @@ flutter:
   assets:
     - docs/ui/mobile/a_collection_of_12_diverse_high_quality_profile_avatars_of_people_men_and_women.png
     - docs/ui/mobile/avatar_placeholder.webp
+    - assets/images/onboard/avatars/
     - assets/images/avatars/

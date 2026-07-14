@@ -101,12 +101,10 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
   Future<void> setTimerAt(String memberId, DateTime endsAt) async {
     final member = await _repo.setMemberTimer(memberId, endsAt);
     refresh();
-    if (member == null || member.timerEndsAt == null) return;
-    await NotificationService.instance.scheduleMemberTimerNotifications(
-      memberId: member.id,
-      memberName: member.name,
-      endsAt: member.timerEndsAt!,
-      tableName: _repo.getTable(_tableId)?.name,
+    if (member == null) return;
+    await NotificationService.instance.syncMemberTimerNotification(
+      member.id,
+      _repo,
     );
   }
 
@@ -117,9 +115,13 @@ class MembersNotifier extends StateNotifier<List<MemberModel>> {
   }
 
   Future<void> updateName(MemberModel member, String newName) async {
-    member.name = newName;
-    await _repo.updateMember(member);
+    final renamedMember = await _repo.renameMember(member.id, newName);
     refresh();
+    if (renamedMember == null) return;
+    await NotificationService.instance.syncMemberTimerNotification(
+      renamedMember.id,
+      _repo,
+    );
   }
 
   Future<void> setAvatar(MemberModel member, String? avatarAsset) async {

@@ -79,10 +79,39 @@ void main() {
     final table = await repository.createTable('Friday beers');
     final member = await repository.addMember(table.id, 'Petr');
 
-    member.name = 'Petr M.';
-    await repository.updateMember(member);
+    await repository.renameMember(member.id, 'Petr M.');
 
     expect(repository.getMembersForTable(table.id).single.name, 'Petr M.');
+  });
+
+  test('renaming a member updates related order and event snapshots', () async {
+    final repository = TableRepository();
+    final ordersBox = Hive.box<OrderModel>('orders');
+    final table = await repository.createTable('Friday beers');
+    final member = await repository.addMember(table.id, 'Petr');
+
+    await ordersBox.add(
+      OrderModel(
+        id: 'order-1',
+        tableId: table.id,
+        memberId: member.id,
+        memberName: member.name,
+        timestamp: DateTime.now(),
+      ),
+    );
+    await repository.addEvent(
+      tableId: table.id,
+      memberId: member.id,
+      memberName: member.name,
+      type: 'paid',
+      timestamp: DateTime.now(),
+    );
+
+    await repository.renameMember(member.id, 'Petr M.');
+
+    expect(repository.getMembersForTable(table.id).single.name, 'Petr M.');
+    expect(ordersBox.values.single.memberName, 'Petr M.');
+    expect(repository.getEventsForTable(table.id).single.memberName, 'Petr M.');
   });
 
   test('removes a member from the table', () async {

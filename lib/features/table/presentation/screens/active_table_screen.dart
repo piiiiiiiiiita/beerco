@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:beerco/core/utils/notification_service.dart';
 import 'package:beerco/core/theme/app_components.dart';
 import 'package:beerco/features/table/presentation/providers/table_providers.dart';
 import 'package:beerco/features/table/presentation/widgets/table_hero_card.dart';
@@ -629,6 +630,10 @@ class _ActiveTableScreenState extends ConsumerState<ActiveTableScreen>
     await ref
         .read(tableRepositoryProvider)
         .renameTable(widget.tableId, newName);
+    await NotificationService.instance.syncTableTimerNotifications(
+      widget.tableId,
+      ref.read(tableRepositoryProvider),
+    );
     ref.invalidate(activeTablesProvider);
     ref.invalidate(archivedTablesProvider);
     if (mounted) {

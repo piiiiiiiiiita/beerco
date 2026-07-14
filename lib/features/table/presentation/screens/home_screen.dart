@@ -48,21 +48,21 @@ class HomeScreen extends ConsumerWidget {
                             const SizedBox(height: 14),
                             if (active.isEmpty)
                               const _EmptyStateCard(
-                                title: 'Zatím nic neběží',
+                                title: 'Nothing is running yet',
                                 subtitle:
-                                    'Začněte nové sezení a přidejte první stůl.',
+                                    'Start a new session and add your first table.',
                               )
                             else
                               ...active.map(
                                 (table) => _HomeTableCard(table: table),
                               ),
                             const SizedBox(height: 28),
-                            const AppSectionHeader(title: 'Historie'),
+                            const AppSectionHeader(title: 'History'),
                             const SizedBox(height: 14),
                             if (archived.isEmpty)
                               const _EmptyStateCard(
-                                title: 'Historie je prázdná',
-                                subtitle: 'Uzavřené stoly se objeví tady.',
+                                title: 'History is empty',
+                                subtitle: 'Closed tables will appear here.',
                               )
                             else
                               AppSurfaceCard(
@@ -100,7 +100,7 @@ class HomeScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
                 child: AppPrimaryButton(
-                  label: 'Nové sezení',
+                  label: 'New Session',
                   icon: Icons.add,
                   onPressed: () => context.push('/new-table'),
                 ),
@@ -127,7 +127,7 @@ class _HomeOnboarding extends StatelessWidget {
           _OnboardingAvatarOrbit(isDark: isDark),
           const SizedBox(height: 36),
           Text(
-            'První sezení',
+            'First Session',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w900,
@@ -136,7 +136,7 @@ class _HomeOnboarding extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Založte stůl, přidejte partu a začněte počítat objednávky.',
+            'Create a table, add a party and start counting orders.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               height: 1.35,
@@ -145,7 +145,7 @@ class _HomeOnboarding extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           AppPrimaryButton(
-            label: 'Nové sezení',
+            label: 'New Session',
             icon: Icons.add,
             onPressed: onStart,
           ),
@@ -165,14 +165,52 @@ class _OnboardingAvatarOrbit extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const orbitAssets = [
-      'assets/images/avatars/Avatar=1.png',
-      'assets/images/avatars/Avatar=7.png',
-      'assets/images/avatars/Avatar=12.png',
-      'assets/images/avatars/Avatar=23.png',
-      'assets/images/avatars/Avatar=26.png',
-      'assets/images/avatars/Avatar=32.png',
-      'assets/images/avatars/Avatar=36.png',
-      'assets/images/avatars/Avatar=37.png',
+      'assets/images/onboard/avatars/avatar-onboard-6.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-2.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-3.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-4.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-5.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-1.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-7.jpg',
+      'assets/images/onboard/avatars/avatar-onboard-8.jpg',
+    ];
+    final circleSpecs = [
+      (
+        size: 332.0,
+        color: isDark
+            ? AppColors.glowYellow.withValues(alpha: 0.10)
+            : AppColors.primary.withValues(alpha: 0.12),
+        shadow: isDark
+            ? AppColors.glowOrange.withValues(alpha: 0.12)
+            : AppColors.primary.withValues(alpha: 0.10),
+      ),
+      (
+        size: 248.0,
+        color: isDark
+            ? AppColors.glowOrange.withValues(alpha: 0.18)
+            : AppColors.primary.withValues(alpha: 0.22),
+        shadow: isDark
+            ? AppColors.glowOrange.withValues(alpha: 0.16)
+            : AppColors.primary.withValues(alpha: 0.12),
+      ),
+      (
+        size: 168.0,
+        color: isDark
+            ? AppColors.primary.withValues(alpha: 0.34)
+            : AppColors.primary.withValues(alpha: 0.44),
+        shadow: isDark
+            ? AppColors.glowOrange.withValues(alpha: 0.18)
+            : AppColors.primary.withValues(alpha: 0.14),
+      ),
+      /* (
+        size: 112.0,
+        color: isDark
+            ? AppColors.primary.withValues(alpha: 0.72)
+            : AppColors.primary.withValues(alpha: 0.88),
+        shadow: isDark
+            ? AppColors.glowOrange.withValues(alpha: 0.20)
+            : AppColors.primary.withValues(alpha: 0.16),
+      ), */
     ];
 
     return SizedBox(
@@ -183,28 +221,35 @@ class _OnboardingAvatarOrbit extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.center,
-            child: Container(
-              width: 184,
-              height: 184,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.04)
-                    : Colors.white.withValues(alpha: 0.6),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark
-                        ? AppColors.glowOrange.withValues(alpha: 0.10)
-                        : Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 40,
-                    spreadRadius: 2,
-                  ),
+            child: SizedBox(
+              width: 382,
+              height: 382,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  for (final spec in circleSpecs)
+                    Container(
+                      width: spec.size,
+                      height: spec.size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: spec.color,
+                        boxShadow: [
+                          BoxShadow(
+                            color: spec.shadow,
+                            blurRadius: 28,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
           const _OrbitAvatar(
-            asset: 'assets/images/avatars/Avatar=11.png',
+            asset: 'assets/images/onboard/avatars/avatar-onboard-0.jpg',
             size: 104,
             top: 108,
             left: 108,
@@ -216,6 +261,8 @@ class _OnboardingAvatarOrbit extends StatelessWidget {
               size: _orbitSpecs[i].size,
               top: _orbitSpecs[i].top,
               left: _orbitSpecs[i].left,
+              rotation: _orbitSpecs[i].rotation,
+              orbitIndex: i,
             ),
         ],
       ),
@@ -223,47 +270,167 @@ class _OnboardingAvatarOrbit extends StatelessWidget {
   }
 }
 
-class _OrbitAvatar extends StatelessWidget {
+class _OrbitAvatar extends StatefulWidget {
   final String asset;
   final double size;
   final double top;
   final double left;
+  final double rotation;
   final bool hero;
+  final int? orbitIndex;
 
   const _OrbitAvatar({
     required this.asset,
     required this.size,
     required this.top,
     required this.left,
+    this.rotation = 0.0,
     this.hero = false,
+    this.orbitIndex,
   });
 
   @override
+  State<_OrbitAvatar> createState() => _OrbitAvatarState();
+}
+
+class _OrbitAvatarState extends State<_OrbitAvatar>
+    with TickerProviderStateMixin {
+  AnimationController? _scaleController;
+  AnimationController? _rotationController;
+
+  bool get _animates => !widget.hero && widget.orbitIndex != null;
+
+  void _ensureControllers() {
+    final orbitIndex = widget.orbitIndex ?? 0;
+    _scaleController ??= AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 5200 + (orbitIndex * 430)),
+    );
+    _rotationController ??= AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+
+    if (_animates) {
+      if (!_scaleController!.isAnimating) {
+        _scaleController!.value = ((orbitIndex * 13) % 100) / 100;
+        _scaleController!.repeat(reverse: true);
+      }
+      if (!_rotationController!.isAnimating) {
+        _rotationController!.repeat(reverse: true);
+      }
+    } else {
+      _scaleController!.value = 0.5;
+      _rotationController!.value = 0.0;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureControllers();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _ensureControllers();
+  }
+
+  @override
+  void dispose() {
+    _scaleController?.dispose();
+    _rotationController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _ensureControllers();
     final isDark = AppColors.isDark(context);
+    final orbitIndex = widget.orbitIndex ?? 0;
+    final minScale = 0.96 + ((orbitIndex % 3) * 0.01);
+    final maxScale = 1.03 + ((orbitIndex % 4) * 0.01);
+    final cornerRadius = widget.hero ? 30.0 : widget.size * 0.22;
+
+    final avatar = Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: widget.hero
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(cornerRadius),
+              image: DecorationImage(
+                image: AssetImage(widget.asset),
+                fit: BoxFit.cover,
+              ),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : Colors.white.withValues(alpha: 0.75),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.10),
+                  blurRadius: 34,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            )
+          : BoxDecoration(
+              borderRadius: BorderRadius.circular(cornerRadius),
+              image: DecorationImage(
+                image: AssetImage(widget.asset),
+                fit: BoxFit.cover,
+              ),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.82),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? AppColors.glowOrange.withValues(alpha: 0.18)
+                      : AppColors.glowYellow.withValues(alpha: 0.24),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.10),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+    );
 
     return Positioned(
-      top: top,
-      left: left,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(hero ? 30 : 22),
-          image: DecorationImage(image: AssetImage(asset), fit: BoxFit.cover),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.10)
-                : Colors.white.withValues(alpha: 0.75),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.10),
-              blurRadius: hero ? 34 : 22,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
+      top: widget.top,
+      left: widget.left,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_scaleController!, _rotationController!]),
+        child: avatar,
+        builder: (context, child) {
+          final rotation = _animates
+              ? ui.lerpDouble(
+                  widget.rotation,
+                  widget.rotation + 0.15,
+                  Curves.easeInOut.transform(_rotationController!.value),
+                )!
+              : 0.0;
+          final scale = _animates
+              ? ui.lerpDouble(
+                  minScale,
+                  maxScale,
+                  Curves.easeInOut.transform(_scaleController!.value),
+                )!
+              : 1.0;
+
+          return Transform.rotate(
+            angle: rotation,
+            child: Transform.scale(scale: scale, child: child),
+          );
+        },
       ),
     );
   }
@@ -273,19 +440,66 @@ class _OrbitSpec {
   final double size;
   final double top;
   final double left;
+  final double rotation;
 
-  const _OrbitSpec({required this.size, required this.top, required this.left});
+  const _OrbitSpec({
+    required this.size,
+    required this.top,
+    required this.left,
+    required this.rotation,
+  });
 }
 
 const _orbitSpecs = [
-  _OrbitSpec(size: 54, top: 18, left: 132),
-  _OrbitSpec(size: 42, top: 40, left: 42),
-  _OrbitSpec(size: 58, top: 48, left: 222),
-  _OrbitSpec(size: 42, top: 102, left: 8),
-  _OrbitSpec(size: 46, top: 110, left: 272),
-  _OrbitSpec(size: 54, top: 210, left: 32),
-  _OrbitSpec(size: 60, top: 222, left: 216),
-  _OrbitSpec(size: 42, top: 246, left: 134),
+  // Position and rotation follow the same orbitAssets index order.
+  _OrbitSpec(
+    size: 60,
+    top: -14,
+    left: 120,
+    rotation: -0.25,
+  ), // avatar-onboard-6.jpg
+  _OrbitSpec(
+    size: 72,
+    top: 40,
+    left: 22,
+    rotation: 0.1,
+  ), // avatar-onboard-2.jpg
+  _OrbitSpec(
+    size: 70,
+    top: 30,
+    left: 190,
+    rotation: 0.36,
+  ), //avatar-onboard-3.jpg
+  _OrbitSpec(
+    size: 54,
+    top: 145,
+    left: -10,
+    rotation: -0.32,
+  ), // avatar-onboard-4.jpg
+  _OrbitSpec(
+    size: 54,
+    top: 90,
+    left: 272,
+    rotation: 0.64,
+  ), // avatar-onboard-5.jpg
+  _OrbitSpec(
+    size: 74,
+    top: 230,
+    left: 52,
+    rotation: -0.16,
+  ), // avatar-onboard-1.jpg
+  _OrbitSpec(
+    size: 64,
+    top: 170,
+    left: 250,
+    rotation: -0.42,
+  ), // avatar-onboard-7.jpg
+  _OrbitSpec(
+    size: 62,
+    top: 235,
+    left: 160,
+    rotation: -0.03,
+  ), // avatar-onboard-8.jpg
 ];
 
 class _HomeGlowBackdrop extends StatelessWidget {

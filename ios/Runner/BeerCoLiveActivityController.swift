@@ -94,6 +94,19 @@ final class BeerCoLiveActivityController {
     }
 
     if let activity = matches.first {
+      if activity.attributes.memberName != memberName {
+        for existing in matches {
+          await existing.end(nil, dismissalPolicy: .immediate)
+        }
+
+        let attributes = BeerCoTimerAttributes(
+          memberId: memberId,
+          memberName: memberName
+        )
+        _ = try Activity.request(attributes: attributes, content: content, pushType: nil)
+        return
+      }
+
       await activity.update(content)
       for duplicate in matches.dropFirst() {
         await duplicate.end(nil, dismissalPolicy: .immediate)

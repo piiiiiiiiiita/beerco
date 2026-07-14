@@ -237,15 +237,36 @@ class NotificationService {
     await initHive();
     final repository = TableRepository();
     final member = await repository.extendMemberTimer(memberId, 10);
-    if (member == null || member.timerEndsAt == null) return;
+    if (member == null) return;
+    await syncMemberTimerNotification(memberId, repository);
+  }
 
-    final tableName = repository.getTable(member.tableId)?.name;
+  Future<void> syncMemberTimerNotification(
+    String memberId,
+    TableRepository repository,
+  ) async {
+    final member = repository.getMember(memberId);
+    final endsAt = member?.timerEndsAt;
+    if (member == null || endsAt == null || !endsAt.isAfter(DateTime.now())) {
+      await cancelMemberTimerNotifications(memberId);
+      return;
+    }
+
     await scheduleMemberTimerNotifications(
       memberId: member.id,
       memberName: member.name,
-      endsAt: member.timerEndsAt!,
-      tableName: tableName,
+      endsAt: endsAt,
+      tableName: repository.getTable(member.tableId)?.name,
     );
+  }
+
+  Future<void> syncTableTimerNotifications(
+    String tableId,
+    TableRepository repository,
+  ) async {
+    for (final member in repository.getMembersForTable(tableId)) {
+      await syncMemberTimerNotification(member.id, repository);
+    }
   }
 
   int _timerNotificationId(String memberId, int slot) {

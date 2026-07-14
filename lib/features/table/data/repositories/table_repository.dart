@@ -26,6 +26,9 @@ class TableRepository {
   TableModel? getTable(String id) =>
       _tableBox.values.where((t) => t.id == id).firstOrNull;
 
+  MemberModel? getMember(String id) =>
+      _memberBox.values.where((member) => member.id == id).firstOrNull;
+
   Future<TableModel> createTable(String name) async {
     final table = TableModel(
       id: _uuid.v4(),
@@ -132,13 +135,25 @@ class TableRepository {
     await member.save();
   }
 
+  Future<MemberModel?> renameMember(String memberId, String newName) async {
+    final member = getMember(memberId);
+    final trimmedName = newName.trim();
+    if (member == null || trimmedName.isEmpty) return member;
+    if (member.name == trimmedName) return member;
+
+    member.name = trimmedName;
+    await member.save();
+    await _renameMemberReferences(memberId, trimmedName);
+    return member;
+  }
+
   Future<void> removeMember(MemberModel member) async {
     member.timerEndsAt = null;
     await member.delete();
   }
 
   Future<MemberModel?> setMemberTimer(String memberId, DateTime endsAt) async {
-    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    final member = getMember(memberId);
     if (member == null) return null;
     member.timerEndsAt = endsAt;
     await member.save();
@@ -146,7 +161,7 @@ class TableRepository {
   }
 
   Future<MemberModel?> clearMemberTimer(String memberId) async {
-    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    final member = getMember(memberId);
     if (member == null) return null;
     member.timerEndsAt = null;
     await member.save();
@@ -154,7 +169,7 @@ class TableRepository {
   }
 
   Future<MemberModel?> extendMemberTimer(String memberId, int minutes) async {
-    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    final member = getMember(memberId);
     if (member == null) return null;
     final base =
         member.timerEndsAt != null &&
@@ -167,7 +182,7 @@ class TableRepository {
   }
 
   Future<bool> markMemberPaid(String memberId) async {
-    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    final member = getMember(memberId);
     if (member == null) return false;
 
     final latestActiveAgain = _latestEventTimestamp(
@@ -211,7 +226,7 @@ class TableRepository {
   }
 
   Future<void> markMemberUnpaid(String memberId) async {
-    final member = _memberBox.values.where((m) => m.id == memberId).firstOrNull;
+    final member = getMember(memberId);
     if (member != null) {
       member.isPaid = false;
       member.paidAt = null;
@@ -261,5 +276,45 @@ class TableRepository {
             .toList()
           ..sort();
     return timestamps.lastOrNull;
+  }
+
+  Future<void> _renameMemberReferences(String memberId, String newName) async {
+    final orders = _orderBox.values.where(
+      (order) => order.memberId == memberId,
+    );
+    for (final order in orders) {
+      final key = order.key;
+      if (key == null) continue;
+      await _orderBox.put(
+        key,
+        OrderModel(
+          id: order.id,
+          tableId: order.tableId,
+          memberId: order.memberId,
+          memberName: newName,
+          timestamp: order.timestamp,
+          quantity: order.quantity,
+        ),
+      );
+    }
+
+    final events = _tableEventBox.values.where(
+      (event) => event.memberId == memberId,
+    );
+    for (final event in events) {
+      final key = event.key;
+      if (key == null) continue;
+      await _tableEventBox.put(
+        key,
+        TableEventModel(
+          id: event.id,
+          tableId: event.tableId,
+          memberId: event.memberId,
+          memberName: newName,
+          type: event.type,
+          timestamp: event.timestamp,
+        ),
+      );
+    }
   }
 }
